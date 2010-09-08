@@ -43,7 +43,10 @@ function printGraph(graphid, services, from, to) {
 					series: {
 						lines: { show: true },
 					},
-					selection: { mode: "x" }
+					selection: {
+						mode: "x",
+						color: "#444"
+					}
 				});
 			}
 	});
