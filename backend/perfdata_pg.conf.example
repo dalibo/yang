@@ -1,0 +1,14 @@
+# Example configuration file
+# Do you want to start as a daemon ?
+daemon=1
+# Where does nagios spool all it's perfdata ?
+directory=/var/lib/nagios3/spool/perfdata/
+# How often do we check ?
+frequency=5
+# Connection string to the database
+db_connection_string=dbi:Pg:dbname=nagios_perfdata host=my_host
+# Database user
+db_user=nagios_perfdata
+# Database password
+db_password=my_password
+
