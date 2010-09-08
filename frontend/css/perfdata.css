@@ -1,0 +1,39 @@
+#bread {
+  background-color: #bbb;
+  padding: 3px;
+  margin-bottom: 25px;
+}
+
+#bread ul {
+  margin-left: 0;
+  padding-left: 0;
+  display: inline;
+  border: none;
+} 
+
+#bread ul li {
+  margin-left: 0;
+  padding-left: 2px;
+  border: none;
+  list-style: none;
+  display: inline;
+}
+
+#bread ul li:before {
+  content: "\0020 \0020 \0020 \00BB \0020";
+  color: #ff9;
+}
+
+#bread ul li.first:before {
+  content: " ";
+}
+
+ul.scales {
+	margin:0;padding:0;
+	list-style: none;
+}
+
+ul.scales li {
+	display:inline;
+	padding-right:15px;
+}

@@ -1,0 +1,12 @@
+<?php 
+
+$conf = array(
+	/* database stuff */
+	'db_connection_string' => 'host=your_host dbname=your_db_name user=your_user password=xxxx',
+
+	/* graphing */
+	'graph_width'	=> 700,
+	'graph_height'	=> 300
+);
+
+?>
