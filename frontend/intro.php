@@ -15,10 +15,10 @@ function print_htmlheader($title) {
 	printf('<html>
 		<head>
 		<title>%s</title>
-        <link rel="stylesheet" media="all" type="text/css" href="css/perfdata.css" />
+        <link rel="stylesheet" media="all" type="text/css" href="css/yang.css" />
         <link rel="stylesheet" media="all" type="text/css" href="css/jquery-ui.css" />
 
-		<script type="text/javascript" src="js/perfdata.js"></script>
+		<script type="text/javascript" src="js/yang.js"></script>
 		<script type="text/javascript" src="js/jquery.js"></script>
 		<script type="text/javascript" src="js/jquery.flot.js"></script>
 		<script type="text/javascript" src="js/jquery.flot.selection.js"></script>

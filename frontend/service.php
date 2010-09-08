@@ -29,7 +29,7 @@ function print_graph($title, $graphid, $services_id) {
 
 		<script type="text/javascript">
 			$(document).ready(function () {
-				jQuery.perfdata.graphs[<?php echo $graphid ?>] =
+				jQuery.yang.graphs[<?php echo $graphid ?>] =
 					<?php echo json_encode($services_id); ?>;
 			});
 		</script>
@@ -101,7 +101,7 @@ if (!$multi_graphs)
 ?>
 	<script type="text/javascript">
 		/* used to keep track of graph id and props generated */
-		jQuery.perfdata = { graphs: {}};
+		jQuery.yang = { graphs: {}};
 
 		$(document).ready(function () {
 			$('.scales input[type=button]').click(function () {
@@ -138,7 +138,7 @@ if (!$multi_graphs)
 					break;
 				}
 
-				printGraph(graphid, jQuery.perfdata.graphs[graphid], 
+				printGraph(graphid, jQuery.yang.graphs[graphid], 
 					fromDate.getTime().toPrecision(13),
 					toDate.getTime().toPrecision(13)
 				);
@@ -154,7 +154,7 @@ if (!$multi_graphs)
 				if (ranges.yaxis.to - ranges.yaxis.from < 0.00001) 
 					ranges.yaxis.to = ranges.yaxis.from + 0.00001;
 				
-				printGraph(graphid, jQuery.perfdata.graphs[graphid], 
+				printGraph(graphid, jQuery.yang.graphs[graphid], 
 					ranges.xaxis.from.toPrecision(13), ranges.xaxis.to.toPrecision(13));
 			});
 
