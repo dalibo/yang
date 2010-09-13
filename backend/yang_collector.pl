@@ -301,6 +301,7 @@ sub watch_directory
 			insert_parsed_data($dbh,$parsed,"$dirname/$entry");
 			unlink("$dirname/$entry") or die "Can't remove $dirname/$entry: $!\n";
 			$dbh->commit();
+			$dbh->disconnect();
 		}
 		sleep $frequency;
 	}
