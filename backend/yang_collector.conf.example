@@ -11,4 +11,7 @@ db_connection_string=dbi:Pg:dbname=nagios_perfdata host=my_host
 db_user=nagios_perfdata
 # Database password
 db_password=my_password
-
+# Debugging ? It means die on errors
+debug = 0
+# syslogging ? messages sent to stderr else
+syslog = 1

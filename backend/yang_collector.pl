@@ -36,6 +36,8 @@ my $verbose=0;
 my $connection_string;
 my $user;
 my $password;
+my $debug=0;
+my $syslog=0;
 
 
 # The next two functions were stolen from Nagios::Plugin::Performance
@@ -96,6 +98,24 @@ sub parse_perfstring {
 }
 
 
+sub log_message
+{
+	my ($message)=@_;
+	if ($syslog)
+	{
+		setlogsock('unix');
+		openlog('yang','','user');
+		syslog('info',$message);
+		closelog();
+	}
+	else
+	{
+		print STDERR $message,"\n";
+	}
+
+}
+
+
 # This function splits a line of performance data and parses it.
 # Parsing of the perfdata part is done by parse_perfstring
 
@@ -104,11 +124,28 @@ sub parse_perfline {
 	my %parsed;
 	# Performance lines are made of KEY::VALUE\tKEY::VALUE...
 	my @elements=split("\t",$line);
-	(@elements > 0) or die "Can't understand this line : <$line>\n";
+	unless (@elements > 0)
+	{
+		if ($debug)
+		{
+			die "Can't understand this line : <$line>\n";
+		}
+		log_message("Can't understand this line : <$line>");
+		return;
+
+	}
 	foreach my $element (@elements)
 	{
 		# This has to be a key-value. Else I die !
-		$element =~ /^(\S+)::(.*)$/ or die "Can't understand this attribute : <$element>\n";
+		unless ($element =~ /^(\S+)::(.*)$/)
+		{
+			if ($debug)
+			{
+				die "Can't understand this attribute : <$element>\n";
+			}
+			log_message("Can't understand this attribute : <$element>");
+			return;
+		}
 		$parsed{$1}=$2;
 	}
 	# Ok. Is it a serviceperfdata or a hostperfdata ?
@@ -311,7 +348,9 @@ sub watch_directory
 # It is hand made and very dumb, due to the simple configuration file
 sub parse_config
 {
-	my ($config,$refdaemon,$refdirectory,$reffrequency,$ref_connection_string,$ref_user,$ref_password)=@_;
+	my ($config,$refdaemon,$refdirectory,$reffrequency,
+            $ref_connection_string,$ref_user,$ref_password,
+            $ref_syslog,$ref_debug)=@_;
 	my $confH;
 	open $confH,$config or die "Can't open <$config>:$!\n";
 	while (my $line=<$confH>)
@@ -352,6 +391,19 @@ sub parse_config
 		{
 			$$ref_password=$value;
 		}
+		elsif ($param eq 'syslog')
+		{
+			$$ref_syslog=$value;
+			if ($value)
+			{
+				# We will need this module
+				use Sys::Syslog qw( :DEFAULT setlogsock);
+			}
+		}
+		elsif ($param eq 'debug')
+		{
+			$$ref_debug=$value;
+		}
 		else
 		{
 			die "Unknown parameter <$param> in configuration file\n";
@@ -386,7 +438,7 @@ Pod::Usage::pod2usage(-exitval => 1, -verbose => 1) unless ($config and $result)
 
 
 # Parse config file
-parse_config($config,\$daemon,\$directory,\$frequency,\$connection_string,\$user,\$password);
+parse_config($config,\$daemon,\$directory,\$frequency,\$connection_string,\$user,\$password,\$syslog,\$debug);
 
 # Usage if missing parameters in command line or configuration file
 Pod::Usage::pod2usage(-exitval => 1, -verbose => 1) unless ($directory);
