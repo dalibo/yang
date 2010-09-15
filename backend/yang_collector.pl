@@ -2,7 +2,7 @@
 
 =head1 About
 
-Auteur : marc.cousin@dalibo.com
+Author : marc.cousin@dalibo.com
 
 Version 1.0 : 2010-08-04
 
@@ -12,13 +12,29 @@ Name : process_perfdata.pl
 
 process_perfdata.pl [--daemon] [--verbose] --directory=data_dir [--frequency=scrutinizing_frequency] --config=configuration_file
 
-=head1 Use
+=head1 USE
 
 This program scrutinizes nagios' perfdata directory.
+
 Spooled files have to be of this format (in the nagios configuration) :
 
 host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tHOSTOUTPUT::$HOSTOUTPUT$
+
 service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$\tSERVICEOUTPUT::$SERVICEOUTPUT$
+
+=head1 COPYRIGHT
+
+parse_perfrecord and parse_perfstring are
+
+Copyright (C) 2006-2007 Nagios Plugin Development Team
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+
+the rest is 
+
+Copyright (C) 2010 Dalibo
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
 =cut
 
