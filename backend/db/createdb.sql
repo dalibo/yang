@@ -187,10 +187,8 @@ ALTER FUNCTION public.get_sampled_service_data(i_hostname text, i_service text, 
 -- Name: insert_record(text, bigint, text, text, text, numeric, text); Type: FUNCTION; Schema: public; Owner: nagios_perfdata
 --
 
-CREATE OR REPLACE FUNCTION public.insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text)
- RETURNS boolean
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text) RETURNS boolean LANGUAGE plpgsql AS
+$code$
 -- This function inserts a record into its detail table and inserts or updates into the service table too if required
 DECLARE
   vservice record;
@@ -205,7 +203,6 @@ BEGIN
   INTO vservice
   FROM services
   WHERE hostname=phostname AND service=pservice AND label=plabel;
-
   IF NOT FOUND THEN
     -- The service doesn't exist. We create it now
     -- A trigger will take care of creating the counter_detail* table
@@ -218,28 +215,23 @@ BEGIN
     FROM services
     WHERE hostname=phostname AND service=pservice AND label=plabel;
   END IF;
-
   vid:=vservice.id;
   vstate:=vservice.state;
   vunit:=vservice.unit;
   vlastm:=vservice.last_modified;
   vtimet:='epoch'::timestamptz + ptimet * '1 second'::interval;
-
   -- Is service's last modified date older than a day ? We have to update service table if it's the case.
   IF (vlastm + '1 day'::interval < CURRENT_DATE) THEN
     -- We need to update
-    UPDATE service SET last_modified = CURRENT_DATE WHERE id=vid;
+    UPDATE services SET last_modified = CURRENT_DATE WHERE id=vid;
   END IF;
-
   -- Has the state changed ?
-  IF (vstate <> pservicestate) THEN
+  IF (vstate <> pservicestate OR vstate IS NULL) THEN
     -- We need to update
-    UPDATE service SET state = pservicestate WHERE id=vid;
+    UPDATE services SET state = pservicestate WHERE id=vid;
   END IF;
-
   -- Has the unit changed ? For now, we just ignore that. But we'll have to discuss about it
   -- TODO...
-
   -- We insert the counter. Maybe it already exists. In this case, we trap the error and update it instead
   BEGIN
     EXECUTE 'INSERT INTO counters_detail_'|| vid 
@@ -254,8 +246,7 @@ BEGIN
   END; -- INSERT INTO counters_detail block
   RETURN true;
 END;
-$function$
-
+$code$;
 --
 -- Name: max_timet_id(bigint); Type: FUNCTION; Schema: public; Owner: postgres
 --
