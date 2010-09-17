@@ -171,8 +171,10 @@ sub parse_perfline {
 		$parsed{SERVICEDESC}='HOST';
 		$parsed{SERVICEPERFDATA}=$parsed{HOSTPERFDATA};
 		$parsed{SERVICEOUTPUT}=$parsed{HOSTOUTPUT};
+		$parsed{SERVICESTATE}=$parsed{HOSTSTATE};
 		undef $parsed{HOSTPERFDATA};
 		undef $parsed{HOSTOUTPUT};
+		undef $parsed{HOSTSTATE};
 	}
 	# Now everything is the same kind of performance data
 	# Let's split the perfdata
@@ -255,7 +257,7 @@ sub read_file
 		my $parsed_line=parse_perfline($line);
 
 		# We want to return an array of perfcounters (hash). We are interested in
-		# TIMET, HOSTNAME, SERVICEDESC, 
+		# TIMET, HOSTNAME, SERVICEDESC, SERVICESTATE
 		# every label and value element of SERVICEPERFDATA_PARSED
 		# So we push that into @parsed_file
 		foreach my $perfcounterref (@{$parsed_line->{SERVICEPERFDATA_PARSED}})
@@ -264,6 +266,7 @@ sub read_file
 			$perfcounter{TIMET}=$parsed_line->{TIMET};
 			$perfcounter{HOSTNAME}=$parsed_line->{HOSTNAME};
 			$perfcounter{SERVICEDESC}=$parsed_line->{SERVICEDESC};
+			$perfcounter{SERVICESTATE}=$parsed_line->{SERVICESTATE};
 			$perfcounter{LABEL}=$perfcounterref->{label};
 			# Okay, lets work on the units. We normalize everything
 			my ($basic_uom,$multfactor)=eval_uom($perfcounterref->{uom});
@@ -320,18 +323,19 @@ sub dbconnect
 sub insert_parsed_data
 {
 	my ($dbh,$parsed_data,$filename)=@_;
-	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?)');
+	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?,?)');
 	foreach my $counter (@{$parsed_data})
 	{
 		$sth->execute($counter->{HOSTNAME},
 		              $counter->{TIMET},
 		              $counter->{SERVICEDESC},
+			      $counter->{SERVICESTATE},
 		              $counter->{LABEL},
 		              $counter->{VALUE},
 			      $counter->{UOM}) 
-			or die "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}.\nFile : $filename \n";
+			or die "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}.\nFile : $filename \n";
 		my $result=$sth->fetchrow();
-		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}\n";
+		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}\n";
 		$sth->finish();
 	}
 }
