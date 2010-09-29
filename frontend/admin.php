@@ -5,6 +5,7 @@ require('./intro.php');
 
 require('./menu.php');
 
+/* Delete a service */
 if (isset($_GET['action']) and isset($_GET['serviceid']) and (! empty($_GET['serviceid']))) {
 	
 	$query = sprintf('DELETE FROM services WHERE id = %u', $_GET['serviceid']);
@@ -19,55 +20,106 @@ if (isset($_GET['action']) and isset($_GET['serviceid']) and (! empty($_GET['ser
 	}
 }
 
-$query = 'SELECT id, hostname, service, label, to_char(creation_timestamp, \'yyyy-mm-dd HH24:MI\') AS creation_timestamp,  last_modified
-FROM services 
-ORDER BY 2,3,4';
-$res = pg_query($dbh, $query);
+/* main query */
+$query = 'SELECT hostname, service, label, to_char(creation_timestamp, \'yyyy-mm-dd HH24:MI\') AS creation_timestamp,  last_modified, id
+FROM services ORDER BY';
 
-if ($res === false)
-	die ("Query for hosts failed.\n");
+/* sort control */
+if (!isset($_SESSION['admin']))
+	$_SESSION['admin'] = array(
+		'sort' => array(
+			0 => array(1,'ASC'),
+			1 => array(2,'ASC'),
+			2 => array(3,'ASC'),
+			3 => array(4,'ASC'),
+			4 => array(5,'ASC')
+		)
+	);
+
+/* custom ordering */
+if (isset($_POST['sort'])) {
+	$used_col = array(1=>false,2=>false,3=>false,4=>false,5=>false);
+	$_SESSION['admin']['sort'] = array(); // erase past order
+	$i=0;
+	foreach ($_POST['sort'] as $col) {
+		if (($used_col[$col] === false) && ($col !== '')) { // remove duplicate
+			$_SESSION['admin']['sort'][] = array(
+				intval($col), pg_escape_string($_POST['sortorder'][$i])
+			);
+			$used_col[$col] = true;
+		}
+		$i++;
+	}
+}
 
 print_htmlheader($title);
 
 printf("<h1>%s</h1>", htmlentities($title));
 
-$lasthost = $lastservice = '';
+$sort_options = '
+<option value="">--</option>
+<option value="1"%s>Host</option>
+<option value="2"%s>Service</option>
+<option value="3"%s>Label</option>
+<option value="4"%s>Creation date</option>
+<option value="5"%s>Last update</option>
+';
 
-/*
-echo "<ul>";
-$host = pg_fetch_array($res);
-while ($host) {
+$sortorder_options = '
+<option value="">--</option>
+<option value="ASC"%s>ASC</option>
+<option value="DESC"%s>DESC</option>
+';
 
-	if ($lasthost != $host['hostname']) {
-		$lasthost = $host['hostname'];
-		printf("<li> <h2>%s</h2>", htmlentities($host['hostname']));
-		echo "<ul>";
-		while ($lasthost == $host['hostname']) {
-			if ($lastservice != $host['service']) {
-				$lastservice = $host['service'];
-				printf("<li> <h3>%s</h3>", htmlentities($host['service']));
-				echo "<ul>";
-				while ($lastservice == $host['service']) {
-					printf("<li> <h4>%s</h4>Created: %s, last modified date: %s<br /><a class=\"delete\" href=\"?action=del&serviceid=%d\">[delete]</a></li>",
-						htmlentities($host['label']),
-						htmlentities($host['creation_timestamp']),
-						htmlentities($host['last_modified']),
-						htmlentities($host['id'])
-					);
-					$host = pg_fetch_array($res);
-				}
-				echo "</ul>";
-				echo "</li>";
-			}
-		}
-		echo "</ul>";
-		echo "</li>";
+/* build the query sort order and print the sort form */
+if (empty($_SESSION['admin']['sort'])) $query .= '1,2,3,4,5';
+else {
+
+	$sort = array(0,0,0,0,0);
+	$sortoder = array('','','','','');
+
+	$i=0;
+	foreach ($_SESSION['admin']['sort'] AS $c) {
+		$query .= sprintf(' %d %s,', $c[0], $c[1]);
+		$sort[$i] = $c[0];
+		$sortorder[$i] = $c[1];
+		$i++;
 	}
+
+	$query = substr($query, 0, -1); // remove the last comma
 }
-echo "</ul>";
-*/
+
+echo "<form action=\"?\" method=\"post\">\n";
+for ($i=0; $i < 5; $i++) {
+	printf("<select name=\"sort[]\">{$sort_options}</select>",
+		($sort[$i] === 1)? ' selected="selected"':'',
+		($sort[$i] === 2)? ' selected="selected"':'',
+		($sort[$i] === 3)? ' selected="selected"':'',
+		($sort[$i] === 4)? ' selected="selected"':'',
+		($sort[$i] === 5)? ' selected="selected"':''
+	);
+	printf("<select name=\"sortorder[]\">{$sortorder_options}</select>&nbsp;&nbsp;&nbsp;",
+		($sortorder[$i] === 'ASC')? ' selected="selected"':'',
+		($sortorder[$i] === 'DESC')? ' selected="selected"':''
+	);
+}
+echo "<input type=\"submit\" name=\"doSort\" value=\"Sort &gt;\" />";
+echo "</form>";
+
+$res = pg_query($dbh, $query);
+
+if ($res === false)
+	die ("Query for hosts failed.\n");
+
 echo "<table border=\"1\">";
-echo "<tr><th>Host</th><th>Service</th><th>Label</th><th>Creation date</th><th>Last update date</th><th>Action</th></tr>\n";
+echo "<tr>
+	<th>Host</th>
+	<th>Service</th>
+	<th>Label</th>
+	<th>Creation date</th>
+	<th>Last update date</th>
+	<th>Action</th>
+</tr>\n";
 while ($host = pg_fetch_array($res)) {
 	echo "<tr>\n";
 	printf('<td>%s</td>', htmlentities($host['hostname']));
