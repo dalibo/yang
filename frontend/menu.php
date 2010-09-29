@@ -9,7 +9,9 @@ function add_item($item, $url, $first = false)
       htmlentities($url), htmlentities($item));
 }
 
-printf('<div id="bread"><ul>');
+echo '<div id="bread">';
+echo '<div id="adminlink"><a href="admin.php">Admin</a></div>';
+echo '<ul>';
 add_item('Home', 'index.php', true);
 if (isset($hostname))
     add_item("Host '{$hostname}'", "services.php?hostname=$hostname");
@@ -33,6 +35,6 @@ if (isset($service))
     
     add_item($servicelabel, "service.php?hostname=$hostname&service=$service");
 }
-printf('</ul></div>');
+echo '</ul></div>';
 
 ?>
