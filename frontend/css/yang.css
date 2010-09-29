@@ -1,4 +1,4 @@
-a, a:hover, a:visited {
+a:hover, a:visited, a:active, a:link {
 	color: blue
 }
 #bread {
@@ -44,12 +44,12 @@ ul.scales li {
 	float:right;
 }
 
-.warning {
+.warning, a.warning:hover, a.warning:visited, a.warning:active, a.warning:link {
 	color: orange;
 	font-weight: bold;
 }
 
-.critical {
+.critical, a.critical:hover, a.critical:visited, a.critical:active, a.critical:link  {
 	color: red;
 	font-weight: bold;
 }

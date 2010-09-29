@@ -27,6 +27,8 @@ require('./menu.php');
 
 printf("<h1>%s</h1>", htmlentities($title));
 
+echo "<table border=\"1\">";
+echo "<tr><th>Host</th><th># services</th><th>details</th><th># warnings</th><th># criticals</th><th>Load</th></tr>";
 while ($host = pg_fetch_array($res)) {
 
 	if ($host['criticals'] > 0)
@@ -36,23 +38,28 @@ while ($host = pg_fetch_array($res)) {
 	else
 		$host_status_class = '';
 
-	printf("<div><h2><a href=\"services.php?hostname=%s\" class=\"%s\">%s</a></h2>\n",
-		htmlentities($host['hostname']), $host_status_class,
-		htmlentities($host['hostname'])
+	echo "<tr>\n";
+	
+	printf("<td><a href=\"services.php?hostname=%s\" class=\"%s\">%s</a></td>\n",
+		htmlentities($host['hostname']), $host_status_class, htmlentities($host['hostname'])
     );
 
-	printf("<p>%u devices monitored - %u system, %u PostgreSQL, %u others,
-		<span class=\"%s\">%u warnings</span>, <span class=\"%s\">%u criticals</span></p>\n",
+	printf("<td>%u</td><td>%u sys / %u pgsql / %u others</td>
+		<td class=\"%s\">%u</td><td class=\"%s\">%u</td>\n",
 		$host['all_serv'], $host['sys_serv'], $host['pg_serv'], $host['srv_serv'],
 		($host['warnings'] > 0)? 'warning':'', $host['warnings'],
 		($host['criticals'] > 0)? 'critical':'', $host['criticals']
     );
 
     if (!empty($host['load']))
-		printf("<p>Load: %s (last update %s).</p>\n",
+		printf("<td>%s (@ %s)</td>\n",
 			htmlentities($host['load']), htmlentities($host['last_time_load'])
 		);
+	else echo "<td>&nbsp;</td>";
+
+	echo "</tr>\n";
 }
+echo "</table>";
 
 require('./outro.php');
 ?>
