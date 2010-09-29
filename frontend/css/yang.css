@@ -1,3 +1,6 @@
+a, a:hover, a:visited {
+	color: blue
+}
 #bread {
   background-color: #bbb;
   padding: 3px;
@@ -39,4 +42,14 @@ ul.scales li {
 }
 #adminlink {
 	float:right;
+}
+
+.warning {
+	color: orange;
+	font-weight: bold;
+}
+
+.critical {
+	color: red;
+	font-weight: bold;
 }
