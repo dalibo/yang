@@ -10,24 +10,6 @@ SET client_min_messages = warning;
 SET escape_string_warning = off;
 
 --
--- Name: plperl; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: postgres
---
-
-CREATE PROCEDURAL LANGUAGE plperl;
-
-
-ALTER PROCEDURAL LANGUAGE plperl OWNER TO postgres;
-
---
--- Name: plperlu; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: postgres
---
-
-CREATE PROCEDURAL LANGUAGE plperlu;
-
-
-ALTER PROCEDURAL LANGUAGE plperlu OWNER TO postgres;
-
---
 -- Name: plpgsql; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: postgres
 --
 
@@ -156,7 +138,6 @@ end;
 $$;
 
 
-ALTER FUNCTION public.get_last_value(i_hostname text, i_service text, i_label text) OWNER TO nagios_perfdata;
 
 --
 -- Name: get_sampled_service_data(bigint, timestamp with time zone, timestamp with time zone, integer); Type: FUNCTION; Schema: public; Owner: postgres
@@ -203,107 +184,69 @@ $$;
 ALTER FUNCTION public.get_sampled_service_data(i_hostname text, i_service text, i_label text, timet_begin timestamp with time zone, timet_end timestamp with time zone, sample_sec integer) OWNER TO postgres;
 
 --
--- Name: insert_record(text, bigint, text, text, numeric, text); Type: FUNCTION; Schema: public; Owner: nagios_perfdata
+-- Name: insert_record(text, bigint, text, text, text, numeric, text); Type: FUNCTION; Schema: public; Owner: nagios_perfdata
 --
 
-CREATE FUNCTION insert_record(hostname text, timet bigint, service text, label text, value numeric, unit text) RETURNS boolean
-    LANGUAGE plperlu
-    AS $_X$
-# This function inserts a record into its table
-# It also maintains meta data (and CHECKS metadata)
-
-my ($hostname,$timet,$service,$label,$value,$unit)=@_;
-
-# First, it this hostname/service/label already in our local cache ?
-if (not defined $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"})
-{
-        # It isn't in cache
-        # Is it known in the database ?
-        my $prepstt=spi_prepare('SELECT id,hostname,service,label,unit,extract(epoch from last_modified) as lastm FROM services WHERE hostname=$1 and service=$2 and label=$3'
-                    , 'text', 'text', 'text');
-        my $result=spi_exec_prepared($prepstt,$hostname,$service,$label);
-        spi_freeplan($prepstt);
-
-        if (not defined $result->{rows}[0])
-        {
-                # We create the record
-                my $prepstt=spi_prepare('INSERT INTO services (hostname,service,label,unit) VALUES($1,$2,$3,$4)'
-                                    , 'text', 'text', 'text', 'text');
-                my $result=spi_exec_prepared($prepstt,$hostname,$service,$label,$unit);
-                ($rv->{status} == SPI_OK_INSERT) or elog(ERROR,"Can't insert <$hostname,$service,$label,$unit>");
-                spi_freeplan($prepstt);
-
-                # It's in the database
-                # Let's retrieve it
-                $prepstt=spi_prepare('SELECT id,hostname,service,label,unit,extract(epoch from last_modified) as lastm FROM services WHERE hostname=$1 and service=$2 and label=$3'
-                                    , 'text', 'text', 'text');
-                $result=spi_exec_prepared($prepstt,$hostname,$service,$label);
-                spi_freeplan($prepstt);
-                # Put it in the cache
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{ID}= $result->{rows}[0]->{id};
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{UNIT}= $result->{rows}[0]->{unit};
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{LAST_M}= $result->{rows}[0]->{lastm};
-        }
-        else
-        {
-                # Just put it in the cache
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{ID}= $result->{rows}[0]->{id};
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{UNIT}= $result->{rows}[0]->{unit};
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{LAST_M}= $result->{rows}[0]->{lastm};
-        }
-}
-# It is in the cache. So just double check the metadata : is the unit OK. Else we'll die for now as we're still debugging
-($_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{UNIT} eq $unit)
-   or elog(ERROR,"Inconsistent unit : $hostname,$timet,$service,$label,$value,$unit. Unit is different in the DB");
-
-my $id = $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{ID};
-
-# Is service's last modified date older than a day ? We have to update service table if its the case.
-if ($_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{LAST_M}= $result->{rows}[0]->{lastm} + 86400 <= time() )
-{
-        # Lets update
-        my $prepstt=spi_prepare('UPDATE services set last_modified=now()::date WHERE id=$1','bigint');
-        my $result=spi_exec_prepared($prepstt,$id);
-        # No need to update cache. The session is closed after each insertion batch, so the cache will be refreshed then
-}
-
-
-# We don't need to create the counters partition. There is a trigger doing this work for us as soon as we insert a new record in service
-# There is also a trigger to destroy the partition when its record is removed from services
-
-# Do we already have a prepared insert statement for this table ?
-if (not defined $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{PREP_STT_I})
-{
-        my $prepstt=spi_prepare("INSERT INTO counters_detail_${id} (timet,value) VALUES ('epoch'::timestamptz + \$1 * '1 second'::interval,\$2)",'bigint','numeric');
-        $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{PREP_STT_I}=$prepstt;
-}
-my $prepstt=$_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{PREP_STT_I};
-
-# Now insert the data: We have to eval it, it may fail.
-eval{spi_exec_prepared($prepstt,$timet,$value);};
-
-# Eval failed. We have to update instead
-if ($@)
-{
-        # Do we already have a prepared insert statement for this table ?
-        if (not defined $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{PREP_STT_U})
-        {
-                my $prepstt=spi_prepare("UPDATE counters_detail_${id} SET value = \$2 WHERE timet='epoch'::timestamptz + \$1 * '1 second'::interval",'bigint','numeric');
-                $_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{PREP_STT_U}=$prepstt;
-        }
-        my $prepstt=$_SHARED{KNOWN_HOSTS}->{"$hostname/$service/$label"}->{PREP_STT_U};
-
-        # Now insert the data. If it fails, let the whole thing die
-        spi_exec_prepared($prepstt,$timet,$value);
-
-}
-return 1;
-
-$_X$;
-
-
-ALTER FUNCTION public.insert_record(hostname text, timet bigint, service text, label text, value numeric, unit text) OWNER TO nagios_perfdata;
-
+CREATE OR REPLACE FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text) RETURNS boolean LANGUAGE plpgsql AS
+$code$
+-- This function inserts a record into its detail table and inserts or updates into the service table too if required
+DECLARE
+  vservice record;
+  vid bigint;
+  vstate text;
+  vunit text;
+  vlastm date;
+  vtimet timestamptz; -- the timestamp corresponding to the ptimet epoch
+BEGIN
+  -- Let's retrieve the service data, we'll need it
+  SELECT id,state,unit,last_modified
+  INTO vservice
+  FROM services
+  WHERE hostname=phostname AND service=pservice AND label=plabel;
+  IF NOT FOUND THEN
+    -- The service doesn't exist. We create it now
+    -- A trigger will take care of creating the counter_detail* table
+    INSERT INTO services
+    (hostname,service,state,label,unit)
+    VALUES (phostname,pservice,pservicestate,plabel,punit);
+    -- We do the select again
+    SELECT id,state,unit,last_modified
+    INTO vservice
+    FROM services
+    WHERE hostname=phostname AND service=pservice AND label=plabel;
+  END IF;
+  vid:=vservice.id;
+  vstate:=vservice.state;
+  vunit:=vservice.unit;
+  vlastm:=vservice.last_modified;
+  vtimet:='epoch'::timestamptz + ptimet * '1 second'::interval;
+  -- Is service's last modified date older than a day ? We have to update service table if it's the case.
+  IF (vlastm + '1 day'::interval < CURRENT_DATE) THEN
+    -- We need to update
+    UPDATE services SET last_modified = CURRENT_DATE WHERE id=vid;
+  END IF;
+  -- Has the state changed ?
+  IF (vstate <> pservicestate OR vstate IS NULL) THEN
+    -- We need to update
+    UPDATE services SET state = pservicestate WHERE id=vid;
+  END IF;
+  -- Has the unit changed ? For now, we just ignore that. But we'll have to discuss about it
+  -- TODO...
+  -- We insert the counter. Maybe it already exists. In this case, we trap the error and update it instead
+  BEGIN
+    EXECUTE 'INSERT INTO counters_detail_'|| vid 
+            || ' (timet, value) VALUES ($1,$2)'
+            USING vtimet,pvalue;
+    EXCEPTION
+      WHEN unique_violation THEN
+      -- We tried to insert a row that already exists. Update it instead
+      EXECUTE 'UPDATE counters_detail_'|| vid
+              || ' SET value = $2 WHERE timet = $1'
+              USING vtimet,pvalue;
+  END; -- INSERT INTO counters_detail block
+  RETURN true;
+END;
+$code$;
 --
 -- Name: max_timet_id(bigint); Type: FUNCTION; Schema: public; Owner: postgres
 --
@@ -320,7 +263,6 @@ END
 $$;
 
 
-ALTER FUNCTION public.max_timet_id(p_id bigint) OWNER TO postgres;
 
 --
 -- Name: min_timet_id(bigint); Type: FUNCTION; Schema: public; Owner: postgres
@@ -338,7 +280,6 @@ END
 $$;
 
 
-ALTER FUNCTION public.min_timet_id(p_id bigint) OWNER TO postgres;
 
 SET default_tablespace = '';
 
@@ -352,6 +293,7 @@ CREATE TABLE services (
     id bigint NOT NULL,
     hostname text,
     service text,
+    state text,
     label text,
     unit text,
     last_modified date DEFAULT (now())::date,
@@ -359,7 +301,6 @@ CREATE TABLE services (
 );
 
 
-ALTER TABLE public.services OWNER TO nagios_perfdata;
 
 --
 -- Name: services_id_seq; Type: SEQUENCE; Schema: public; Owner: nagios_perfdata

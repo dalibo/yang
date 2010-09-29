@@ -1,6 +1,8 @@
 <?php 
 require('conf/config.php');
 
+session_start();
+
 function stripVar(&$var) {
 	if (is_array($var)) {
 		foreach($var as $k => $v) {
