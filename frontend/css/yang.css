@@ -37,3 +37,6 @@ ul.scales li {
 	display:inline;
 	padding-right:15px;
 }
+#adminlink {
+	float:right;
+}
