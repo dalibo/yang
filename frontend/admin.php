@@ -17,8 +17,6 @@ if (isset($_GET['action']) and isset($_GET['serviceid']) and (! empty($_GET['ser
 	else {
 		echo "<pre style=\"color: blue\">Couldn't delete the service {$_GET['serviceid']} !</pre>";
 	}
-	
-	exit;
 }
 
 $query = 'SELECT id, hostname, service, label, to_char(creation_timestamp, \'yyyy-mm-dd HH24:MI\') AS creation_timestamp,  last_modified
