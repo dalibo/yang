@@ -4,9 +4,10 @@ require('./intro.php');
 $hostname = $_GET['hostname'];
 $title="Host '{$hostname}'";
 
-$query = sprintf("SELECT service, label, state
+$query = sprintf("SELECT service, label, bool_or(state = 'WARNING') OVER (PARTITION BY service) AS warning_status, bool_or(state = 'CRITICAL') OVER (PARTITION BY service) AS critical_status
 FROM services
-WHERE hostname = '%s'
+WHERE hostname = 'axeria_avpl003'
+GROUP BY 1,2,state
 ORDER BY 1,2;", pg_escape_string($hostname));
 
 $res = pg_query($query);
@@ -26,10 +27,10 @@ $service = pg_fetch_array($res);
 
 while ($service !== false) {
 	$current = $service['service'];
-	if ($service['state'] == 'WARNING')
-	    $class_state = 'warning';
-	else if ($service['state'] == 'CRITICAL')
+	if ($service['critical_status'] == 't')
 	    $class_state = 'critical';
+	else if ($service['warning_status'] == 't')
+	    $class_state = 'warning';
 	else
 	    $class_state = '';
 
