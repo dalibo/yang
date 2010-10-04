@@ -4,10 +4,11 @@ require('./intro.php');
 $hostname = $_GET['hostname'];
 $title="Host '{$hostname}'";
 
-$query = sprintf("SELECT service, label
+$query = sprintf("SELECT service, label, bool_or(state = 'WARNING') OVER (PARTITION BY service) AS warning_status, bool_or(state = 'CRITICAL') OVER (PARTITION BY service) AS critical_status
 FROM services
-WHERE hostname='%s'
-ORDER BY service", pg_escape_string($hostname));
+WHERE hostname = 'axeria_avpl003'
+GROUP BY 1,2,state
+ORDER BY 1,2;", pg_escape_string($hostname));
 
 $res = pg_query($query);
 if ($res === false)
@@ -26,6 +27,13 @@ $service = pg_fetch_array($res);
 
 while ($service !== false) {
 	$current = $service['service'];
+	if ($service['critical_status'] == 't')
+	    $class_state = 'critical';
+	else if ($service['warning_status'] == 't')
+	    $class_state = 'warning';
+	else
+	    $class_state = '';
+
 	echo "<tr>\n<td>\n";
 	
 	printf("<a href=\"#%s\" name=\"%s\" class=\"details\">[show details]</a>&nbsp;\n",
@@ -33,10 +41,11 @@ while ($service !== false) {
 		htmlentities($service['service'])
 	);
 
-	printf("<a href=\"service.php?hostname=%s&service=%s&show=\">%s</a>&nbsp;\n",
-		htmlentities($hostname), 
+	printf("<a href=\"service.php?hostname=%s&service=%s&show=\" class=\"%s\" >%s</a>&nbsp;\n",
+		htmlentities($hostname),
 		htmlentities($service['service']),
-		htmlentities($service['service']) 
+		$class_state,
+		htmlentities($service['service'])
 	);
 
 	printf("(<a href=\"service.php?hostname=%s&service=%s\">multi graphs</a>)\n",
