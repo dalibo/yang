@@ -314,8 +314,14 @@ sub daemonize
 # This function connects to the database and returns a db handle
 sub dbconnect
 {
-	my $dbh=DBI->connect($connection_string,$user,$password)
-		or die "Can't connect to " . $connection_string . "\n";
+	my $dbh;
+	my $retry=0;
+	while (not defined $dbh)
+	{
+		sleep $retry; # We sleep longer and longer in case of failures
+		$dbh=DBI->connect($connection_string,$user,$password);
+		$retry++;
+	}
 	return $dbh;
 }
 
@@ -355,7 +361,13 @@ sub watch_directory
 			my $parsed=read_file("$dirname/$entry");
 			my $dbh=dbconnect();# We reconnect for each file, to be sure there is no memory leak
 			$dbh->begin_work();
-			insert_parsed_data($dbh,$parsed,"$dirname/$entry");
+			my $inserted=insert_parsed_data($dbh,$parsed,"$dirname/$entry");
+			# If not inserted, we retry
+			unless ($inserted)
+			{
+				$dbh->disconnect();
+				redo;
+			}
 			unlink("$dirname/$entry") or die "Can't remove $dirname/$entry: $!\n";
 			$dbh->commit();
 			$dbh->disconnect();
