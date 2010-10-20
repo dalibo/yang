@@ -332,18 +332,23 @@ sub insert_parsed_data
 	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?,?)');
 	foreach my $counter (@{$parsed_data})
 	{
-		$sth->execute($counter->{HOSTNAME},
+		my $executed=$sth->execute($counter->{HOSTNAME},
 		              $counter->{TIMET},
 		              $counter->{SERVICEDESC},
 			      $counter->{SERVICESTATE},
 		              $counter->{LABEL},
 		              $counter->{VALUE},
-			      $counter->{UOM}) 
-			or die "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}.\nFile : $filename \n";
+			      $counter->{UOM});
+		unless ($executed)
+		{
+			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}.\nFile : $filename \n";
+			return 0;
+		}
 		my $result=$sth->fetchrow();
 		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}\n";
 		$sth->finish();
 	}
+	return 1;
 }
 
 # Watch the incoming directory
@@ -366,6 +371,7 @@ sub watch_directory
 			unless ($inserted)
 			{
 				$dbh->disconnect();
+			log_message("Couldn't insert $entry properly. Retrying");
 				redo;
 			}
 			unlink("$dirname/$entry") or die "Can't remove $dirname/$entry: $!\n";
