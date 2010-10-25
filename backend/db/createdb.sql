@@ -23,25 +23,33 @@ CREATE TYPE counters_detail AS (
 ALTER TYPE public.counters_detail OWNER TO postgres;
 
 
-CREATE FUNCTION cleanup_partition(p_partid bigint) RETURNS boolean
+CREATE FUNCTION cleanup_partition(p_partid bigint, p_max_timestamp timestamptz) RETURNS boolean
     LANGUAGE plpgsql
-    AS $_$            
-DECLARE              
-  v_cursor refcursor;                
-  v_record record;                                                                                                                                                                                                                   
+    AS $_$
+DECLARE
+  v_cursor refcursor;
+  v_record record;
   v_current_value numeric;
-  v_start_range timestamptz;                                                                                                                                  
-  v_previous_timet timestamptz;                                                                                                                                                                        
-  v_counter integer;                                                                                                                                                                                            
-BEGIN                                                                                                                                                                                 
+  v_start_range timestamptz;
+  v_previous_timet timestamptz;
+  v_counter integer;
+  v_previous_cleanup timestamptz;
+BEGIN
+  -- We retrieve the previous clean date
+  SELECT last_cleanup INTO v_previous_cleanup FROM services WHERE id=p_partid;
+  -- Should not happen, the partition should exist.
+  IF NOT FOUND THEN
+    RETURN false;
+  END IF;
   -- We go across the whole table, and remove redundant values (counters where previous value equals current value)
   -- We only keep the first and last value of a range
-  OPEN v_cursor FOR EXECUTE 'SELECT timet,value FROM counters_detail_' || p_partid || ' ORDER BY timet';
+  -- We only clean until p_max_timestamp
+  OPEN v_cursor FOR EXECUTE 'SELECT timet,value FROM counters_detail_' || p_partid || ' WHERE timet >= ' || quote_literal(v_previous_cleanup) || ' AND timet <= ' || quote_literal(p_max_timestamp) || ' ORDER BY timet';
   LOOP
     FETCH v_cursor INTO v_record;
     EXIT WHEN NOT FOUND; -- We have fetched everything
     v_counter:=v_counter+1;
-    
+
     IF v_current_value IS NULL THEN
       -- This is the firs iteration
       v_current_value:=v_record.value;
@@ -65,6 +73,8 @@ BEGIN
     v_previous_timet:=v_record.timet;
   END LOOP;
   CLOSE v_cursor;
+  -- We store the new point to which we have cleaned up
+  UPDATE services SET last_cleanup=p_max_timestamp WHERE id=p_partid;
   RETURN true;
 END;
 $_$;
@@ -237,7 +247,7 @@ ALTER FUNCTION public.get_sampled_service_data(i_hostname text, i_service text, 
 
 
 
-CREATE FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text) RETURNS boolean
+CREATE OR REPLACE FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text) RETURNS boolean
     LANGUAGE plpgsql
     AS $_$
 
@@ -247,10 +257,11 @@ DECLARE
   vstate text;
   vunit text;
   vlastm date;
+  vlastcleanup timestamptz;
   vtimet timestamptz; -- the timestamp corresponding to the ptimet epoch
 BEGIN
   -- Let's retrieve the service data, we'll need it
-  SELECT id,state,unit,last_modified
+  SELECT id,state,unit,last_modified,last_cleanup
   INTO vservice
   FROM services
   WHERE hostname=phostname AND service=pservice AND label=plabel;
@@ -261,7 +272,7 @@ BEGIN
     (hostname,service,state,label,unit)
     VALUES (phostname,pservice,pservicestate,plabel,punit);
     -- We do the select again
-    SELECT id,state,unit,last_modified
+    SELECT id,state,unit,last_modified,last_cleanup
     INTO vservice
     FROM services
     WHERE hostname=phostname AND service=pservice AND label=plabel;
@@ -270,6 +281,7 @@ BEGIN
   vstate:=vservice.state;
   vunit:=vservice.unit;
   vlastm:=vservice.last_modified;
+  vlastcleanup:=vservice.last_cleanup;
   vtimet:='epoch'::timestamptz + ptimet * '1 second'::interval;
   -- Is service's last modified date older than a day ? We have to update service table if it's the case.
   IF (vlastm + '1 day'::interval < CURRENT_DATE) THEN
@@ -281,11 +293,19 @@ BEGIN
     -- We need to update
     UPDATE services SET state = pservicestate WHERE id=vid;
   END IF;
+  -- Has the partition been cleaned up recently ?
+  -- We cleanup data older than a week (let it settle, be sure we have received everything)
+  -- So as an arbitrary rule, we clean a counter if its cleanup is older than 10 days, and cleanup until
+  -- 7 days ago
+  IF vlastcleanup < now() - '10 days'::interval THEN
+    PERFORM cleanup_partition(vid,now()- '7 days'::interval);
+  END IF;
+
   -- Has the unit changed ? For now, we just ignore that. But we'll have to discuss about it
   -- TODO...
   -- We insert the counter. Maybe it already exists. In this case, we trap the error and update it instead
   BEGIN
-    EXECUTE 'INSERT INTO counters_detail_'|| vid 
+    EXECUTE 'INSERT INTO counters_detail_'|| vid
             || ' (timet, value) VALUES ($1,$2)'
             USING vtimet,pvalue;
     EXCEPTION
@@ -352,6 +372,7 @@ CREATE TABLE services (
     unit text,
     last_modified date DEFAULT (now())::date,
     creation_timestamp timestamp with time zone DEFAULT now(),
+    last_cleanup timestamp with time zone DEFAULT now(),
     state text
 );
 
