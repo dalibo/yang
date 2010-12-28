@@ -6,7 +6,7 @@ $title="Host '{$hostname}'";
 
 $query = sprintf("SELECT service, label, bool_or(state = 'WARNING') OVER (PARTITION BY service) AS warning_status, bool_or(state = 'CRITICAL') OVER (PARTITION BY service) AS critical_status
 FROM services
-WHERE hostname = 'axeria_avpl003'
+WHERE hostname = '%s'
 GROUP BY 1,2,state
 ORDER BY 1,2;", pg_escape_string($hostname));
 
