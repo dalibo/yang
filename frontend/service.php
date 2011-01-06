@@ -4,7 +4,7 @@ require('./intro.php');
 /**
  * @param $graphid NOT html-escaped here !!
  **/
-function print_graph($title, $graphid, $services_id) {
+function print_graph($title, $graphid, $services_info) {
 	global $conf;
 	?>
 	<h2><?php echo htmlentities($title) ?></h2>
@@ -30,7 +30,7 @@ function print_graph($title, $graphid, $services_id) {
 		<script type="text/javascript">
 			$(document).ready(function () {
 				jQuery.yang.graphs[<?php echo $graphid ?>] =
-					<?php echo json_encode($services_id); ?>;
+					<?php echo json_encode($services_info); ?>;
 			});
 		</script>
 	</div>
@@ -64,7 +64,7 @@ if ($series === false)
 	die ("Can not fetch service values for hostname '{$hostname}' service '{$service}'.\n");
 
 $multi_graphs = !(isset($_GET['show']) and ($_GET['show'] === ''));
-$values = array();
+$services_info = array();
 
 print_htmlheader($title);
 
@@ -78,25 +78,26 @@ printf("<h1>%s</h1>", htmlentities($title));
 $i = 0;
 while (($serie = pg_fetch_array($series)) !== false) {
 
-	$values[$i] = array(
+	$services_info[$i] = array(
 		'label' => $serie['label'],
 		'id' => $serie['id'],
-		'min_timestamp' => $serie['creation_timestamp']
+		'min_timestamp' => $serie['creation_timestamp'],
+		'unit' => $serie['unit']
 	);
 	
 	/* if we are in multi_graph mode output the graph for current serie now */
 	if ($multi_graphs) {
-		print_graph("evolution of '{$serie['label']}'", $serie['id'], $values);
-		$values = array();
+		print_graph("evolution of '{$serie['label']}'", $serie['id'], $services_info);
+		$services_info = array();
 	}
-	/* else, increment the values array indice so we keep all series data in the values array*/
+	/* else, increment the array indice so we keep all series info in the values array*/
 	else 
 		$i++;
 }
 
 /* if we are not in multi_graph mode, we need to print the graph now */
 if (!$multi_graphs) 
-	print_graph("values of '{$service}'", '0', $values);
+	print_graph("values of '{$service}'", '0', $services_info);
 
 ?>
 	<script type="text/javascript">
@@ -146,6 +147,7 @@ if (!$multi_graphs)
 				return false;
 			})
 
+			/* handle zoom action */
 			$('div.graph').bind("plotselected", function (event, ranges) {
 				var graphid = $(this)[0].id;
 				// clamp the zooming to prevent eternal zoom
@@ -158,7 +160,10 @@ if (!$multi_graphs)
 					ranges.xaxis.from.toPrecision(13), ranges.xaxis.to.toPrecision(13));
 			});
 
+			/* by default, show the week graph by triggering the week button */
 			$('ul.scales input[value=week]').click();
+
+			/* bind the datepicker to the date fields */
 			$('.datepick').datepicker({
 				autoFocusNextInput: true,
 				showOn: 'focus',
