@@ -28,15 +28,15 @@ function printGraph(graphid, services, from, to) {
 					yaxis: {
 						tickFormatter: function (val, axis) {
 							if (val > 1000000000000)
-								return (val / 1000000000000).toFixed(axis.tickDecimals) + " T<?php echo $serie['unit'] ?>";
+								return (val / 1000000000000).toFixed(axis.tickDecimals) + " T" + services[0].unit;
 							if (val > 1000000000)
-								return (val / 1000000000).toFixed(axis.tickDecimals) + " G<?php echo $serie['unit'] ?>";
+								return (val / 1000000000).toFixed(axis.tickDecimals) + " G" + services[0].unit;
 							if (val > 1000000)
-								return (val / 1000000).toFixed(axis.tickDecimals) + " M<?php echo $serie['unit'] ?>";
+								return (val / 1000000).toFixed(axis.tickDecimals) + " M" + services[0].unit;
 							else if (val > 1000)
-								return (val / 1000).toFixed(axis.tickDecimals) + " k<?php echo $serie['unit'] ?>";
+								return (val / 1000).toFixed(axis.tickDecimals) + " k " + services[0].unit;
 							else
-								return val.toFixed(axis.tickDecimals) + " <?php echo $serie['unit'] ?>";
+								return val.toFixed(axis.tickDecimals) + " " + services[0].unit;
 						},
 						tickDecimals: 2
 					},
