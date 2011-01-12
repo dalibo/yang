@@ -8,20 +8,12 @@ SET escape_string_warning = off;
 
 CREATE PROCEDURAL LANGUAGE plpgsql;
 
-
-ALTER PROCEDURAL LANGUAGE plpgsql OWNER TO postgres;
-
 SET search_path = public, pg_catalog;
-
 
 CREATE TYPE counters_detail AS (
 	timet timestamp with time zone,
 	value numeric
 );
-
-
-ALTER TYPE public.counters_detail OWNER TO postgres;
-
 
 CREATE FUNCTION cleanup_partition(p_partid bigint, p_max_timestamp timestamptz) RETURNS boolean
     LANGUAGE plpgsql
@@ -79,10 +71,6 @@ BEGIN
 END;
 $_$;
 
-
-ALTER FUNCTION public.cleanup_partition(p_partid bigint) OWNER TO postgres;
-
-
 CREATE FUNCTION create_partion_on_insert_service() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -97,10 +85,6 @@ EXCEPTION
 END;
 $$;
 
-
-ALTER FUNCTION public.create_partion_on_insert_service() OWNER TO postgres;
-
-
 CREATE FUNCTION drop_partion_on_delete_service() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -113,10 +97,6 @@ EXCEPTION
   RETURN NULL;
 END;
 $$;
-
-
-ALTER FUNCTION public.drop_partion_on_delete_service() OWNER TO postgres;
-
 
 CREATE FUNCTION get_first_timestamp_db() RETURNS timestamp with time zone
     LANGUAGE plpgsql
@@ -138,13 +118,6 @@ EXECUTE 'SELECT min(timet) FROM counters_detail_'||l_id INTO l_timestamp;
  END;
  $$;
 
-
-ALTER FUNCTION public.get_first_timestamp_db() OWNER TO postgres;
-
-
-
-
-
 CREATE FUNCTION get_last_timestamp_db() RETURNS timestamp with time zone
     LANGUAGE plpgsql
     AS $$
@@ -164,13 +137,6 @@ BEGIN
   RETURN l_result;
 END;
 $$;
-
-
-ALTER FUNCTION public.get_last_timestamp_db() OWNER TO postgres;
-
-
-
-
 
 CREATE FUNCTION get_last_value(i_hostname text, i_service text, i_label text) RETURNS counters_detail
     LANGUAGE plpgsql STABLE
@@ -192,13 +158,6 @@ CREATE FUNCTION get_last_value(i_hostname text, i_service text, i_label text) RE
  END;
  $$;
 
-
-ALTER FUNCTION public.get_last_value(i_hostname text, i_service text, i_label text) OWNER TO postgres;
-
-
-
-
-
 CREATE FUNCTION get_sampled_service_data(id_service bigint, timet_begin timestamp with time zone, timet_end timestamp with time zone, sample_sec integer) RETURNS TABLE(timet timestamp with time zone, value numeric)
     LANGUAGE plpgsql
     AS $_$
@@ -213,13 +172,6 @@ CREATE FUNCTION get_sampled_service_data(id_service bigint, timet_begin timestam
 
  END;
   $_$;
-
-
-ALTER FUNCTION public.get_sampled_service_data(id_service bigint, timet_begin timestamp with time zone, timet_end timestamp with time zone, sample_sec integer) OWNER TO postgres;
-
-
-
-
 
 CREATE FUNCTION get_sampled_service_data(i_hostname text, i_service text, i_label text, timet_begin timestamp with time zone, timet_end timestamp with time zone, sample_sec integer) RETURNS TABLE(timet timestamp with time zone, value numeric)
     LANGUAGE plpgsql
@@ -239,13 +191,6 @@ BEGIN
   END IF;
 END;
 $$;
-
-
-ALTER FUNCTION public.get_sampled_service_data(i_hostname text, i_service text, i_label text, timet_begin timestamp with time zone, timet_end timestamp with time zone, sample_sec integer) OWNER TO postgres;
-
-
-
-
 
 CREATE OR REPLACE FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text) RETURNS boolean
     LANGUAGE plpgsql
@@ -319,12 +264,6 @@ BEGIN
 END;
 $_$;
 
-
-ALTER FUNCTION public.insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, punit text) OWNER TO postgres;
-
-
-
-
 CREATE FUNCTION max_timet_id(p_id bigint) RETURNS timestamp with time zone
     LANGUAGE plpgsql
     AS $$
@@ -335,13 +274,6 @@ EXECUTE 'SELECT max(timet) FROM counters_detail_'||p_id INTO v_max;
 RETURN v_max;
 END
 $$;
-
-
-ALTER FUNCTION public.max_timet_id(p_id bigint) OWNER TO postgres;
-
-
-
-
 
 CREATE FUNCTION min_timet_id(p_id bigint) RETURNS timestamp with time zone
     LANGUAGE plpgsql
@@ -354,15 +286,8 @@ RETURN v_min;
 END
 $$;
 
-
-ALTER FUNCTION public.min_timet_id(p_id bigint) OWNER TO postgres;
-
 SET default_tablespace = '';
-
 SET default_with_oids = false;
-
-
-
 
 CREATE TABLE services (
     id bigint NOT NULL,
@@ -376,13 +301,6 @@ CREATE TABLE services (
     state text
 );
 
-
-ALTER TABLE public.services OWNER TO yang;
-
-
-
-
-
 CREATE SEQUENCE services_id_seq
     START WITH 1
     INCREMENT BY 1
@@ -390,53 +308,18 @@ CREATE SEQUENCE services_id_seq
     NO MINVALUE
     CACHE 1;
 
-
-ALTER TABLE public.services_id_seq OWNER TO yang;
-
-
-
-
-
 ALTER SEQUENCE services_id_seq OWNED BY services.id;
-
-
-
-
-
 
 ALTER TABLE services ALTER COLUMN id SET DEFAULT nextval('services_id_seq'::regclass);
 
-
 CREATE UNIQUE INDEX idx_services_hostname_service_label ON services USING btree (hostname, service, label);
-
-
-
-
-
 
 CREATE TRIGGER create_partion_on_insert_service
     BEFORE INSERT ON services
     FOR EACH ROW
     EXECUTE PROCEDURE create_partion_on_insert_service();
 
-
-
-
-
-
 CREATE TRIGGER drop_partion_on_delete_service
     AFTER DELETE ON services
     FOR EACH ROW
     EXECUTE PROCEDURE drop_partion_on_delete_service();
-
-
-
-
-
-
-REVOKE ALL ON SCHEMA public FROM PUBLIC;
-REVOKE ALL ON SCHEMA public FROM postgres;
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO PUBLIC;
-
-
