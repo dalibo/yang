@@ -34,7 +34,8 @@ foreach ($services as $serie) {
 
 	$_from = ($from < $serie['min_timestamp']) ? $serie['min_timestamp'] : $from;
 
-	$query = sprintf('SELECT extract(epoch from timet) as timet, value FROM get_sampled_service_data(%d, %s, %s, %u) ORDER BY 1',
+	# We add the timezone offset right here because flot doesn't support time with timezone
+	$query = sprintf('SELECT extract(epoch from timet)+extract(timezone_hour from timet)*3600+extract(timezone_minute from timet)*60 as timet, value FROM get_sampled_service_data(%d, %s, %s, %u) ORDER BY 1',
 		$serie['id'],
 		sprintf('to_timestamp(%u)', $_from),
 		sprintf('to_timestamp(%u)', $to),
