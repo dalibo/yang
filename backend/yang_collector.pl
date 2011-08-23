@@ -271,6 +271,10 @@ sub read_file
 			# Okay, lets work on the units. We normalize everything
 			my ($basic_uom,$multfactor)=eval_uom($perfcounterref->{uom});
 			$perfcounter{VALUE}=$perfcounterref->{value}*$multfactor;
+			$perfcounter{MIN}=$perfcounterref->{min}*$multfactor;
+			$perfcounter{MAX}=$perfcounterref->{max}*$multfactor;
+			$perfcounter{WARNING}=$perfcounterref->{warning}*$multfactor;
+			$perfcounter{CRITICAL}=$perfcounterref->{critical}*$multfactor;
 			$perfcounter{UOM}=$basic_uom;
 			if ($verbose)
 			{
@@ -329,7 +333,7 @@ sub dbconnect
 sub insert_parsed_data
 {
 	my ($dbh,$parsed_data,$filename)=@_;
-	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?,?)');
+	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?,?,?,?,?,?)');
 	foreach my $counter (@{$parsed_data})
 	{
 		my $executed=$sth->execute($counter->{HOSTNAME},
@@ -338,14 +342,18 @@ sub insert_parsed_data
 			      $counter->{SERVICESTATE},
 		              $counter->{LABEL},
 		              $counter->{VALUE},
+		              $counter->{MIN},
+		              $counter->{MAX},
+		              $counter->{WARNING},
+		              $counter->{CRITICAL},
 			      $counter->{UOM});
 		unless ($executed)
 		{
-			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}.\nFile : $filename \n";
+			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{MIN},$counter->{MAX},$counter->{WARNING},$counter->{CRITICAL},$counter->{UOM}.\nFile : $filename \n";
 			return 0;
 		}
 		my $result=$sth->fetchrow();
-		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}\n";
+		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{MIN},$counter->{MAX},$counter->{WARNING},$counter->{CRITICAL},$counter->{UOM}\n";
 		$sth->finish();
 	}
 	return 1;
