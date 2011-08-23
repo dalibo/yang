@@ -237,10 +237,6 @@ CREATE FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pser
 DECLARE
   vservice record;
   vid bigint;
-  vstate text;
-  vunit text;
-  vlastm date;
-  vlastcleanup timestamptz;
   vtimet timestamptz; 
 BEGIN
   
@@ -266,12 +262,12 @@ BEGIN
   
   
   IF (  vservice.last_modified + '1 day'::interval < CURRENT_DATE 
-     OR vservice.state <> pservicestate OR vstate IS NULL 
-     OR vservice.min <> pmin
-     OR vservice.max <> pmax
-     OR vservice.warning <> pwarning
-     OR vservice.critical <> pcritical
-     OR vservice.unit <> punit
+     OR vservice.state <> pservicestate 
+     OR (vservice.min <> pmin OR (vservice.min IS NULL AND pmin IS NOT NULL)) 
+     OR (vservice.max <> pmax OR (vservice.max IS NULL AND pmax IS NOT NULL))
+     OR (vservice.warning <> pwarning OR (vservice.warning IS NULL AND pwarning IS NOT NULL))
+     OR (vservice.critical <> pcritical OR (vservice.critical IS NULL AND pcritical IS NOT NULL))
+     OR (vservice.unit <> punit OR (vservice.unit IS NULL AND punit IS NOT NULL))
      )
      THEN
     
@@ -288,7 +284,7 @@ BEGIN
   
   
   
-  IF vlastcleanup < now() - '10 days'::interval THEN
+  IF vservice.last_cleanup < now() - '10 days'::interval THEN
     PERFORM cleanup_partition(vid,now()- '7 days'::interval);
   END IF;
   
@@ -308,7 +304,7 @@ BEGIN
   RETURN true;
 END;
 $_$;
-ALTER FUNCTION public.insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) OWNER TO postgres;
+ALTER FUNCTION public.insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) OWNER TO yang;
 CREATE FUNCTION max_timet_id(p_id bigint) RETURNS timestamp with time zone
     LANGUAGE plpgsql
     AS $$
@@ -368,10 +364,9 @@ REVOKE ALL ON SCHEMA public FROM postgres;
 GRANT ALL ON SCHEMA public TO postgres;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 REVOKE ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) FROM PUBLIC;
-REVOKE ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) FROM postgres;
-GRANT ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) TO postgres;
-GRANT ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) TO PUBLIC;
+REVOKE ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) FROM yang;
 GRANT ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) TO yang;
+GRANT ALL ON FUNCTION insert_record(phostname text, ptimet bigint, pservice text, pservicestate text, plabel text, pvalue numeric, pmin numeric, pmax numeric, pwarning numeric, pcritical numeric, punit text) TO PUBLIC;
 REVOKE ALL ON TABLE services FROM PUBLIC;
 REVOKE ALL ON TABLE services FROM yang;
 GRANT ALL ON TABLE services TO yang;
