@@ -150,19 +150,24 @@ while ($host = pg_fetch_array($res)) {
 
 </table>
 <input type="hidden" name="do_drop" value="1" />
-<input type="submit" name="exec" value="Drop !" />
+<input type="submit" name="exec_drop" value="Drop !" />
 </form>
 
 <script type="text/javascript">
+	function confirm_drop() {
+		if (confirm('are you sure you want to delete all selected services ('+ $('input:checked').length +') ?')
+		) {
+			$('form[name=form_drop]').submit()
+			return true;
+		}
+		return false;
+	}
+	
 	$(document).ready(function () {
+		$('input[name=exec_drop]').click(confirm_drop);
 		$('.delete').click(function() {
 			var trs = $(this).closest('tr').find('input').attr('checked', 'checked');
-			if (confirm('are you sure you want to delete all selected services ('+ $('input:checked').length +') ?')
-			) {
-				$('form[name=form_drop]').submit()
-				return true;
-			}
-			return false;
+			return confirm_drop();
 		});
 	});
 </script>
