@@ -6,17 +6,25 @@ require('./intro.php');
 require('./menu.php');
 
 /* Delete a service */
-if (isset($_GET['action']) and isset($_GET['serviceid']) and (! empty($_GET['serviceid']))) {
-	
-	$query = sprintf('DELETE FROM services WHERE id = %u', $_GET['serviceid']);
+if (isset($_POST['do_drop']) and isset($_POST['serviceid']) and (! empty($_POST['serviceid']))) {
+	$query = 'DELETE FROM services WHERE id IN (';
+	foreach ($_POST['serviceid'] as $serviceid) {
+		$query .= sprintf('%d,', $serviceid);
+	}
+
+	$query = substr($query, 0, -1) .') RETURNING *;';
+
 	$res = pg_query($dbh, $query);
+	$num_deleted = pg_num_rows($res);
 	
-	$res = pg_affected_rows($res);
-	if ($res > 0) {
-		echo "<pre style=\"color: blue\">Service {$_GET['serviceid']} deleted.</pre>";
+	if ($num_deleted > 0) {
+		echo "<pre style=\"color: blue\">{$num_deleted} service(s) delete.</pre>";
+		while ($row = pg_fetch_array($res)) {
+			echo "<pre style=\"color: blue\">Service deleted: on {$row['hostname']}, service: «{$row['service']}», label «{$row['label']}».</pre>";
+		}
 	}
 	else {
-		echo "<pre style=\"color: blue\">Couldn't delete the service {$_GET['serviceid']} !</pre>";
+		echo "<pre style=\"color: blue\">Couldn't delete the services!</pre>";
 	}
 }
 
@@ -89,7 +97,12 @@ else {
 	$query = substr($query, 0, -1); // remove the last comma
 }
 
-echo "<form action=\"?\" method=\"post\">\n";
+$res = pg_query($dbh, $query);
+
+if ($res === false)
+	die ("Query for hosts failed.\n");
+
+echo "<form name=\"form_sort\" action=\"?\" method=\"post\">\n";
 for ($i=0; $i < 5; $i++) {
 	printf("<select name=\"sort[]\">{$sort_options}</select>",
 		($sort[$i] === 1)? ' selected="selected"':'',
@@ -103,46 +116,52 @@ for ($i=0; $i < 5; $i++) {
 		($sortorder[$i] === 'DESC')? ' selected="selected"':''
 	);
 }
-echo "<input type=\"submit\" name=\"doSort\" value=\"Sort &gt;\" />";
-echo "</form>";
 
-$res = pg_query($dbh, $query);
+?>
 
-if ($res === false)
-	die ("Query for hosts failed.\n");
+<input type="submit" name="do_sort" value="Sort &gt;" />
+</form>
 
-echo "<table border=\"1\">";
-echo "<tr>
+<form name="form_drop" action="?" method="post">
+<table border="1">
+<tr>
+	<th></th>
 	<th>Host</th>
 	<th>Service</th>
 	<th>Label</th>
 	<th>Creation date</th>
 	<th>Last update date</th>
 	<th>Action</th>
-</tr>\n";
+</tr>
+
+<?php
 while ($host = pg_fetch_array($res)) {
 	echo "<tr>\n";
+	printf('<td><input type="checkbox" name="serviceid[]" value="%d"/></td>', $host['id']);
 	printf('<td>%s</td>', htmlentities($host['hostname']));
 	printf('<td>%s</td>', htmlentities($host['service']));
 	printf('<td>%s</td>', htmlentities($host['label']));
 	printf('<td>%s</td>', htmlentities($host['creation_timestamp']));
 	printf('<td>%s</td>', htmlentities($host['last_modified']));
-	printf('<td><a class="delete" href="?action=del&serviceid=%d">[delete]</a></td>', $host['id']);
+	printf('<td><a class="delete" href="javascript:void(0)">[delete]</a></td>', $host['id']);
 	echo "</tr>\n";
 }
-echo "</table>";
 ?>
+
+</table>
+<input type="hidden" name="do_drop" value="1" />
+<input type="submit" name="exec" value="Drop !" />
+</form>
 
 <script type="text/javascript">
 	$(document).ready(function () {
 		$('.delete').click(function() {
-			var trs = $(this).closest('tr').children('td');
-			if (confirm('are you sure you want to delete label "'+ trs[2].innerHTML +
-				'" from service "'+ trs[1].innerHTML +
-				'" host "'+ trs[0].innerHTML +'" ?')
-			)
+			var trs = $(this).closest('tr').find('input').attr('checked', 'checked');
+			if (confirm('are you sure you want to delete all selected services ('+ $('input:checked').length +') ?')
+			) {
+				$('form[name=form_drop]').submit()
 				return true;
-				
+			}
 			return false;
 		});
 	});
