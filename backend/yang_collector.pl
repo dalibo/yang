@@ -472,7 +472,7 @@ sub parse_config
 			$value =~ m|^/(.*)/$|;
 			$$ref_hostfilter=qr/$1/;
 		}
-		lsif ($param eq 'service_filter')
+		elsif ($param eq 'service_filter')
 		{
 			$value =~ m|^/(.*)/$|;
 			$$ref_servfilter=qr/$1/;
