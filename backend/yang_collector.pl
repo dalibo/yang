@@ -421,7 +421,7 @@ sub parse_config
 		chomp $line;
 
 		#It's a simple ini file
-		$line =~ s/#.*//;  # Remove comments
+		$line =~ s/\s*#.*//;  # Remove comments, and spaces before them
 		next if ($line eq ''); # Ignore empty lines
 		$line =~ s/=\s+/=/; # Remove spaces after the first =
 		$line =~ s/\s+=/=/; # Remove spaces before the first =
