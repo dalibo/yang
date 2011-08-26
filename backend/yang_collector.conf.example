@@ -12,6 +12,10 @@ db_user=nagios_perfdata
 # Database password
 db_password=my_password
 # Debugging ? It means die on errors
-debug = 0
+debug=0
 # syslogging ? messages sent to stderr else
-syslog = 1
+syslog=1
+# Filter rules: maybe you don't want some counters to be stored (badly formatted, whatever). These are perl regular expressions
+hostname_filter = /foo_machine_global|^foo_machine2_strict$/
+service_filter = // # No filter
+label_filter = /dumb_label_i_want_to_get_rid_of/
