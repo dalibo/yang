@@ -17,5 +17,5 @@ debug=0
 syslog=1
 # Filter rules: maybe you don't want some counters to be stored (badly formatted, whatever). These are perl regular expressions
 hostname_filter = /foo_machine_global|^foo_machine2_strict$/
-service_filter = // # No filter
+service_filter = /^$/ # Will filter empty services. That shouldn't happel
 label_filter = /dumb_label_i_want_to_get_rid_of/
