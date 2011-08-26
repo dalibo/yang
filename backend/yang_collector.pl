@@ -469,17 +469,17 @@ sub parse_config
 		}
 		elsif ($param eq 'hostname_filter')
 		{
-			$value =~ m|^/(./)/$|;
+			$value =~ m|^/(.*)/$|;
 			$$ref_hostfilter=qr/$1/;
 		}
-		elsif ($param eq 'service_filter')
+		lsif ($param eq 'service_filter')
 		{
-			$value =~ m|^/(./)/$|;
+			$value =~ m|^/(.*)/$|;
 			$$ref_servfilter=qr/$1/;
 		}
 		elsif ($param eq 'label_filter')
 		{
-			$value =~ m|^/(./)/$|;
+			$value =~ m|^/(.*)/$|;
 			$$ref_lablfilter=qr/$1/;
 		}
 		else
