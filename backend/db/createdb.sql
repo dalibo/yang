@@ -327,6 +327,76 @@ RETURN v_min;
 END
 $$;
 ALTER FUNCTION public.min_timet_id(p_id bigint) OWNER TO postgres;
+
+-- Function: get_sum_sampled_service_data(bigint[], timestamp with time zone, timestamp with time zone, integer)
+
+-- DROP FUNCTION get_sum_sampled_service_data(bigint[], timestamp with time zone, timestamp with time zone, integer);
+
+CREATE OR REPLACE FUNCTION get_sum_sampled_service_data(IN id_service bigint[], IN timet_begin timestamp with time zone, IN timet_end timestamp with time zone, IN sample_sec integer)
+  RETURNS TABLE(timet timestamp with time zone, "value" numeric) AS
+$BODY$
+DECLARE
+  i int;
+  curs_detail refcursor;
+  record_tmp record;
+  record_detail record;
+  curs_detail_lower timestamptz;
+  curs_detail_upper timestamptz;
+BEGIN
+  -- This is a bit complicated: all the services won't have been collected with the exact same timets.
+  -- So we generate timets at the specified interval, and for each of these timet, we retrieve the sum of all the
+  -- services. It's the value just before the specified timet. We could do a query for each service, for each timet
+  -- but performance would suck. So we use the content of the counters_detail_xxx tables, with a cursor, and a lag
+  -- window function to be able to easily find the correct record and continue from there
+  -- First, create the temp table to store our temp data.
+  CREATE temp table tmp_data (timettmp timestamptz, valuetmp numeric);
+  INSERT INTO tmp_data (timettmp) SELECT generate_series (timet_begin,timet_end,'1 second'::interval*sample_sec);
+  CREATE INDEX tmp_indx_tmp_data ON tmp_data(timettmp);
+  -- For each element of id_service, we'll have 2 cursors: one on tmp_data, and one on the counters_detail_xxx
+  -- For the counters_detail_xxx, in order to restrict the data to analyze, we first determine possible boundaries
+  FOR i in array_lower(id_service,1) .. array_upper(id_service,1) LOOP
+    EXECUTE 'SELECT timet FROM counters_detail_'||id_service[i]|| ' WHERE timet<$1 ORDER BY timet ASC' INTO curs_detail_lower USING timet_begin;
+    EXECUTE 'SELECT timet FROM counters_detail_'||id_service[i]|| ' WHERE timet>$1 ORDER BY timet DESC' INTO curs_detail_upper USING timet_end;
+    IF timet_begin IS NULL THEN
+      timet_begin:='-infinity'::timestamptz;
+    END IF;
+    IF timet_end IS NULL THEN
+      timet_end:='infinity'::timestamptz;
+    END IF;
+
+    OPEN curs_detail SCROLL FOR EXECUTE 'SELECT timet,value FROM counters_detail_'||id_service[i]||' WHERE timet > $1 AND timet < $2 ORDER BY timet' USING timet_begin,timet_end;
+    FOR record_tmp IN SELECT timettmp,valuetmp FROM tmp_data ORDER BY timettmp
+    LOOP
+      -- Look for an element in curs_detail with a matching timet
+      LOOP
+        FETCH NEXT FROM curs_detail INTO record_detail;
+        IF record_detail IS NULL OR record_detail.timet>record_tmp.timettmp THEN -- We found
+          EXIT;
+        END IF;
+      END LOOP;
+      -- Move back one record. It's the previous one that is interesting
+      FETCH PRIOR FROM curs_detail INTO record_detail;
+      UPDATE tmp_data SET valuetmp = (coalesce(valuetmp,0))+coalesce(record_detail.value,0) WHERE timettmp=record_tmp.timettmp;
+    END LOOP;
+
+    CLOSE curs_detail;
+  END LOOP;
+
+
+  RETURN QUERY SELECT timettmp, valuetmp FROM tmp_data ORDER BY timettmp;
+
+  DROP TABLE tmp_data;
+  
+  
+
+END;
+  $BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100
+  ROWS 1000;
+ALTER FUNCTION get_sum_sampled_service_data(bigint[], timestamp with time zone, timestamp with time zone, integer) OWNER TO yang;
+
+
 SET default_tablespace = '';
 SET default_with_oids = false;
 CREATE TABLE services (
