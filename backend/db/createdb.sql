@@ -396,6 +396,13 @@ END;
   ROWS 1000;
 ALTER FUNCTION get_sum_sampled_service_data(bigint[], timestamp with time zone, timestamp with time zone, integer) OWNER TO yang;
 
+-- Name: to_epoch_tz(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: yang
+CREATE FUNCTION to_epoch_tz(timestamp with time zone) RETURNS double precision
+    LANGUAGE sql STABLE
+    AS $_$
+SELECT extract(epoch FROM $1) + extract(timezone FROM CURRENT_TIMESTAMP);
+$_$;
+ALTER FUNCTION public.to_epoch_tz(timestamp with time zone) OWNER TO yang;
 
 SET default_tablespace = '';
 SET default_with_oids = false;
