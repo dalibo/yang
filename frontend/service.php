@@ -140,8 +140,8 @@ if (!$multi_graphs)
 				}
 
 				printGraph(graphid, jQuery.yang.graphs[graphid], 
-					fromDate.getTime().toPrecision(13),
-					toDate.getTime().toPrecision(13)
+					fromDate.getTime(),
+					toDate.getTime()
 				);
 
 				return false;

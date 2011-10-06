@@ -2,6 +2,42 @@ function printGraph(graphid, services, from, to) {
 
 	$('#' + graphid).html('<img src="css/images/loading.gif" alt="[loading]" title="loading" />');
 
+	var tick_size = [5, 'second'];
+	var interval = to - from;
+	var unit = 'year';
+	var freq = 1;
+	/* 6 minutes */
+	if (interval < 360000) {
+		unit = 'second';
+		freq = parseInt(interval/6000);
+	}
+	/* 6 hour */
+        else if (interval <= 21600000) {
+                unit = 'minute';
+		freq = parseInt(interval/360000);
+        }
+	/* 6 day */
+        else if (interval <= 518400000) {
+                unit = 'hour';
+		freq = parseInt(interval/21600000);
+        }
+	/* 6 month */
+        else if (interval < 15552000000) {
+                unit = 'day';
+		freq = parseInt(interval/518400000);
+        }
+	/* 6 year */
+        else if (interval < 189216000000) {
+                unit = 'month';
+		freq = parseInt(interval/15552000000);
+        }
+        else {
+                unit = 'year';
+		freq = parseInt(interval/189216000000);
+        }
+
+	tick_size = [freq, unit];
+
 	$.ajax({
 		type: 'POST',
 		contentType: 'application/x-www-form-urlencoded',
@@ -23,7 +59,7 @@ function printGraph(graphid, services, from, to) {
 					},
 					xaxis: {
 						mode: 'time',
-						timeformat: '%d/%m %Hh'
+						tickSize: tick_size
 					},
 					yaxis: {
 						tickFormatter: function (val, axis) {
@@ -48,7 +84,10 @@ function printGraph(graphid, services, from, to) {
 						color: "#444"
 					}
 				});
-			}
+
+			$('#fromdate').attr('value', $.datepicker.formatDate('dd/mm/yy', new Date(parseInt(from))));
+			$('#todate').attr('value', $.datepicker.formatDate('dd/mm/yy', new Date(parseInt(to))));
+		}
 	});
 
 }
