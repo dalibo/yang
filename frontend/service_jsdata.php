@@ -24,13 +24,14 @@ $values = array();
 /**
  * loop on all available series for this service
  **/
-$i = 0;
+ $i=0;
 foreach ($services as $serie) {
 
 	$values['graphs'][$i] = array(
 		'label' => $serie['label'],
 		'data' => array()
 	);
+	$values['map'][$serie['label']] = $i;
 
 	$_from = ($from < $serie['min_timestamp']) ? $serie['min_timestamp'] : $from;
 
