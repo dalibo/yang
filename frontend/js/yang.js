@@ -1,6 +1,6 @@
-function printGraph(graphid, services, from, to) {
+function updateGraph(from, to) {
 
-	$('#' + graphid).html('<img src="css/images/loading.gif" alt="[loading]" title="loading" />');
+	$('graph').html('<img src="css/images/loading.gif" alt="[loading]" title="loading" />');
 
 	$.ajax({
 		type: 'POST',
@@ -9,17 +9,17 @@ function printGraph(graphid, services, from, to) {
 		cache: false,
 		dataType: 'json',
 		data: {
-			services: services,
+			services: jQuery.yang.graph,
 			from: from,
 			to: to
 		},
 		success: function (data) {
 			plot = $.plot(
-				$('#' + graphid), 
+				$('#graph'),
 				data.graphs,
 				{
 					legend: {
-						container: $('#legend' + graphid)
+						container: $('#legend')
 					},
 					xaxis: {
 						mode: 'time'
@@ -27,15 +27,15 @@ function printGraph(graphid, services, from, to) {
 					yaxis: {
 						tickFormatter: function (val, axis) {
 							if (val > 1000000000000)
-								return (val / 1000000000000).toFixed(axis.tickDecimals) + " T" + services[0].unit;
+								return (val / 1000000000000).toFixed(axis.tickDecimals) + " T" + jQuery.yang.graph[0].unit;
 							if (val > 1000000000)
-								return (val / 1000000000).toFixed(axis.tickDecimals) + " G" + services[0].unit;
+								return (val / 1000000000).toFixed(axis.tickDecimals) + " G" + jQuery.yang.graph[0].unit;
 							if (val > 1000000)
-								return (val / 1000000).toFixed(axis.tickDecimals) + " M" + services[0].unit;
+								return (val / 1000000).toFixed(axis.tickDecimals) + " M" + jQuery.yang.graph[0].unit;
 							else if (val > 1000)
-								return (val / 1000).toFixed(axis.tickDecimals) + " k " + services[0].unit;
+								return (val / 1000).toFixed(axis.tickDecimals) + " k " + jQuery.yang.graph[0].unit;
 							else
-								return val.toFixed(axis.tickDecimals) + " " + services[0].unit;
+								return val.toFixed(axis.tickDecimals) + " " + jQuery.yang.graph[0].unit;
 						},
 						tickDecimals: 2
 					},

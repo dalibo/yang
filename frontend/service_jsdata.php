@@ -31,6 +31,7 @@ foreach ($services as $serie) {
 		'label' => $serie['label'],
 		'data' => array()
 	);
+	$values['map'][$serie['label']] = $i;
 
 	$_from = ($from < $serie['min_timestamp']) ? $serie['min_timestamp'] : $from;
 
