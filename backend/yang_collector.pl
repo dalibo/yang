@@ -271,6 +271,10 @@ sub read_file
 			# Okay, lets work on the units. We normalize everything
 			my ($basic_uom,$multfactor)=eval_uom($perfcounterref->{uom});
 			$perfcounter{VALUE}=$perfcounterref->{value}*$multfactor;
+			$perfcounter{MIN}=$perfcounterref->{min}*$multfactor;
+			$perfcounter{MAX}=$perfcounterref->{max}*$multfactor;
+			$perfcounter{WARNING}=$perfcounterref->{warning}*$multfactor;
+			$perfcounter{CRITICAL}=$perfcounterref->{critical}*$multfactor;
 			$perfcounter{UOM}=$basic_uom;
 			if ($verbose)
 			{
@@ -307,6 +311,22 @@ sub daemonize
 	chdir '/';
 }
 
+# Remove all records that match any filter
+sub do_filter
+{
+	my ($data,$hostname_filter,$service_filter,$label_filter)=@_;
+	my $new_data;
+	foreach my $counter (@{$data})
+	{
+		next if ($counter->{HOSTNAME} =~ $hostname_filter);
+		next if ($counter->{SERVICEDESC} =~ $service_filter);
+		next if ($counter->{LABEL} =~ $label_filter);
+		push @$new_data,($counter);
+	}
+	return $new_data;
+}
+
+# Watch the incoming directory
 
 
 # Database access functions
@@ -329,7 +349,7 @@ sub dbconnect
 sub insert_parsed_data
 {
 	my ($dbh,$parsed_data,$filename)=@_;
-	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?,?)');
+	my $sth=$dbh->prepare_cached('SELECT insert_record(?,?,?,?,?,?,?,?,?,?,?)');
 	foreach my $counter (@{$parsed_data})
 	{
 		my $executed=$sth->execute($counter->{HOSTNAME},
@@ -338,24 +358,27 @@ sub insert_parsed_data
 			      $counter->{SERVICESTATE},
 		              $counter->{LABEL},
 		              $counter->{VALUE},
+		              $counter->{MIN},
+		              $counter->{MAX},
+		              $counter->{WARNING},
+		              $counter->{CRITICAL},
 			      $counter->{UOM});
 		unless ($executed)
 		{
-			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}.\nFile : $filename \n";
+			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{MIN},$counter->{MAX},$counter->{WARNING},$counter->{CRITICAL},$counter->{UOM}.\nFile : $filename \n";
 			return 0;
 		}
 		my $result=$sth->fetchrow();
-		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{UOM}\n";
+		($result) or die "Failed inserting: <$result> $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{MIN},$counter->{MAX},$counter->{WARNING},$counter->{CRITICAL},$counter->{UOM}\n";
 		$sth->finish();
 	}
 	return 1;
 }
 
-# Watch the incoming directory
 # As soon as a file is there, send it to read_file.
 sub watch_directory
 {
-	my ($dirname,$frequency)=@_;
+	my ($dirname,$frequency,$hostname_filter,$service_filter,$label_filter)=@_;
 	while(1)
 	{
 		my $dir;
@@ -364,6 +387,8 @@ sub watch_directory
 		{
 			next if ($entry eq '.' or $entry eq '..');
 			my $parsed=read_file("$dirname/$entry");
+			# Get rid of records that should be filtered
+			$parsed=do_filter($parsed,$hostname_filter,$service_filter,$label_filter);
 			my $dbh=dbconnect();# We reconnect for each file, to be sure there is no memory leak
 			$dbh->begin_work();
 			my $inserted=insert_parsed_data($dbh,$parsed,"$dirname/$entry");
@@ -388,7 +413,7 @@ sub parse_config
 {
 	my ($config,$refdaemon,$refdirectory,$reffrequency,
             $ref_connection_string,$ref_user,$ref_password,
-            $ref_syslog,$ref_debug)=@_;
+            $ref_syslog,$ref_debug,$ref_hostfilter,$ref_servfilter,$ref_lablfilter)=@_;
 	my $confH;
 	open $confH,$config or die "Can't open <$config>:$!\n";
 	while (my $line=<$confH>)
@@ -396,10 +421,10 @@ sub parse_config
 		chomp $line;
 
 		#It's a simple ini file
-		$line =~ s/#.*//;  # Remove comments
+		$line =~ s/\s*#.*//;  # Remove comments, and spaces before them
 		next if ($line eq ''); # Ignore empty lines
-		$line =~ s/=\s+//; # Remove spaces after =
-		$line =~ s/\s+=//; # Remove spaces before =
+		$line =~ s/=\s+/=/; # Remove spaces after the first =
+		$line =~ s/\s+=/=/; # Remove spaces before the first =
 
 		$line =~ /^(.*?)=(.*)$/ or die "Can't parse <$line>\n";
 		my $param=$1;
@@ -442,6 +467,21 @@ sub parse_config
 		{
 			$$ref_debug=$value;
 		}
+		elsif ($param eq 'hostname_filter')
+		{
+			$value =~ m|^/(.*)/$|;
+			$$ref_hostfilter=qr/$1/;
+		}
+		elsif ($param eq 'service_filter')
+		{
+			$value =~ m|^/(.*)/$|;
+			$$ref_servfilter=qr/$1/;
+		}
+		elsif ($param eq 'label_filter')
+		{
+			$value =~ m|^/(.*)/$|;
+			$$ref_lablfilter=qr/$1/;
+		}
 		else
 		{
 			die "Unknown parameter <$param> in configuration file\n";
@@ -459,6 +499,9 @@ my $directory;
 my $frequency;
 my $help;
 my $config;
+my $hostname_filter;
+my $service_filter;
+my $label_filter;
 
 
 my $result = GetOptions("daemon" => \$daemon,
@@ -476,7 +519,9 @@ Pod::Usage::pod2usage(-exitval => 1, -verbose => 1) unless ($config and $result)
 
 
 # Parse config file
-parse_config($config,\$daemon,\$directory,\$frequency,\$connection_string,\$user,\$password,\$syslog,\$debug);
+parse_config($config,\$daemon,\$directory,\$frequency,\$connection_string,
+             \$user,\$password,\$syslog,\$debug,\$hostname_filter,
+	     \$service_filter,\$label_filter);
 
 # Usage if missing parameters in command line or configuration file
 Pod::Usage::pod2usage(-exitval => 1, -verbose => 1) unless ($directory);
@@ -493,6 +538,6 @@ daemonize if ($daemon);
 
 
 # Let's work
-watch_directory($directory,$frequency);
+watch_directory($directory,$frequency,$hostname_filter,$service_filter,$label_filter);
 
 

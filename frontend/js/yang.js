@@ -22,8 +22,7 @@ function printGraph(graphid, services, from, to) {
 						container: $('#legend' + graphid)
 					},
 					xaxis: {
-						mode: 'time',
-						timeformat: '%d/%m %Hh'
+						mode: 'time'
 					},
 					yaxis: {
 						tickFormatter: function (val, axis) {
@@ -48,7 +47,10 @@ function printGraph(graphid, services, from, to) {
 						color: "#444"
 					}
 				});
-			}
+
+			$('#fromdate').attr('value', $.datepicker.formatDate('dd/mm/yy', new Date(parseInt(from))));
+			$('#todate').attr('value', $.datepicker.formatDate('dd/mm/yy', new Date(parseInt(to))));
+		}
 	});
 
 }
