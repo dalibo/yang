@@ -118,6 +118,7 @@ while (($serie = pg_fetch_array($series)) !== false) {
 
 			/* handle zoom action */
 			$('div.graph').bind("plotselected", function (event, ranges) {
+
 				// clamp the zooming to prevent eternal zoom
 				if (ranges.xaxis.to - ranges.xaxis.from < 0.00001) 
 					ranges.xaxis.to = ranges.xaxis.from + 0.00001;

@@ -24,7 +24,7 @@ $values = array();
 /**
  * loop on all available series for this service
  **/
-$i = 0;
+ $i=0;
 foreach ($services as $serie) {
 
 	$values['graphs'][$i] = array(
