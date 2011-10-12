@@ -6,7 +6,7 @@ $title="Host '{$hostname}'";
 
 $query = sprintf("SELECT service, bool_or(state = 'WARNING') AS warning_status, bool_or(state = 'CRITICAL') AS critical_status
 FROM services
-WHERE hostname = 'argus_audio'
+WHERE hostname = '%s'
 GROUP BY 1
 ORDER BY 1,2
 ", pg_escape_string($hostname));
