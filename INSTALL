@@ -1,0 +1,205 @@
+Install documentation:
+
+====== yang ======
+
+yang is an acronym for « Yet Another Nagios Grapher ». Its purpose is to display graphs from Nagios's performance data.
+
+yang has two modules:
+
+  * A daemon is started on the monitoring server and collects performance data from Nagios's plugins. This data is stored in a PostgreSQL database.
+  * A few PHP scripts, retrieving and displaying data from the database
+
+===== Prerequisite =====
+
+  * an already configured Nagios server
+  * a web server that can run PHP scripts
+  * a PostgreSQL server
+
+===== Install =====
+
+First get yang's source files. They can be retrieved from https://github.com/dalibo/yang.
+
+==== Nagios ====
+
+Nagios has to provide performanc data in a specific format so that they can be processed. Here is what to change (in Nagios's configuration):
+
+host_perfdata_file=/var/lib/nagios3/host-perfdata
+service_perfdata_file=/var/lib/nagios3/service-perfda
+host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tHOSTOUTPUT::$HOSTOUTPUT$
+service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$\tSERVICEOUTPUT::$SERVICEOUTPUT$
+
+Now, just ask Nagios to reload its configuration:
+
+$ /etc/init.d/nagios3 reload
+
+==== Database ====
+
+yang stores its data in a PostgreSQL database. It's better to have a dedicated user and database to do this. This is fairly standard configuration:
+
+# createuser -SDRP yang
+password: mysupersecretpassword
+# createdb -O yang yang
+
+Remote acces to the database (pg_hba.conf) may also need to be modified. Add a ligne like this (replace xxx with an appropriate network address):
+
+host  yang  yang  xxx.xxx.xxx.xxx/xx  md5
+
+Finally, an SQL script has to be executed on this database to create a few objects: add PL/pgsql, add stored procedures, tables, etc. This script is in the backend/db directory and is named createdb.sql. Running it is also standard:
+
+# psql -U yang -f backend/db/createdb.sql yang
+SET
+SET
+SET
+SET
+SET
+SET
+psql:backend/db/createdb.sql:9: ERROR:  language "plpgsql" already exists
+SET
+CREATE TYPE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+SET
+SET
+CREATE TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER TABLE
+CREATE INDEX
+CREATE TRIGGER
+CREATE TRIGGER
+
+The plpgsql error is normal if plpgsql is already installed in the database (it is the default setting for PostgreSQL 9.0 upwards, for instance).
+
+==== Collector ====
+
+Three files have to be installed:
+
+  * the system startup script: yang_collector
+  * the collector's script: yang_collector.pl
+  * the configuration file: yang_collector.conf
+
+The startup script is in the backend/init.d directory. It is named yang_collector and has to be copied in the /etc/init.d. Then, create the usual symlinks in the rc directories.
+
+# cp backend/init.d/yang_collector /etc/init.d
+# update-rc.d
+
+The collector script, backend/yang-collector.pl, has to be copied in /usr/bin or /usr/local/bin. Any other place may fit. Just modify the init script to put the full path to the script (DEAMON variable).
+
+# cp backend/yang_collector.pl /usr/local/bin
+
+And finally, the configuration file is in the backend directory and is named yang_collector.conf.example. Copy it in a directory and rename it to yang_collector.conf. The default search path is /usr/local/etc. The example configuration file contains this:
+
+# Example configuration file
+# Do you want to start as a daemon ?
+daemon=1
+# Where does nagios spool all it's perfdata ?
+directory=/var/lib/nagios3/spool/perfdata/
+# How often do we check ?
+frequency=5
+# Connection string to the database
+db_connection_string=dbi:Pg:dbname=nagios_perfdata host=my_host
+# Database user
+db_user=nagios_perfdata
+# Database password
+db_password=my_password
+# Debugging ? It means die on errors
+debug = 0 
+# syslogging ? messages sent to stderr else
+syslog = 1 
+
+
+The main thing to check is the connection string to the PostgreSQL database, the username and password. Nagios's performance data directory has to be checked too. This configuration works on a Debian server.
+
+To start the data collection, just run the daemon:
+
+# /etc/init.d/yang_collector start
+
+Beware:
+If the collector dies, performance data will accumulate in the Nagios directory until the disk is full. And of course you wont have data anymore for your graphs. So add a Nagios plugin to check for daemon's presence, and another to check the filesystem's free space (if you haven't already).
+
+==== User Interface ====
+
+The user interface is written in PHP, and will be accessed via a web browser. You will therefore have to install the scripts, configure your webserver and configure this web application.
+
+The scripts are installed by simply copying the frontend directory. For instance:
+
+#cp -r frontend /var/www/yang
+
+The webserver configuration (Apache here) is done as usual. We created a virtal host with this file:
+
+<VirtualHost *:80>
+  ServerName supervision.my.domain
+  ServerAlias supervision.my.domain
+  ServerAdmin webmaster@my.domain
+
+  DocumentRoot /var/www/yang/
+
+  AddDefaultCharset UTF-8
+
+  <Directory /var/www/yang>
+    Order allow,deny
+    Allow from all
+    DirectoryIndex index.php index.html
+    AddType application/x-httpd-php .php .phtml
+    AuthName "Yang Access"
+    AuthType Basic
+    AuthUserFile /var/www/yang/.htpasswd.users
+    Require valid-user
+    <Limit GET POST>
+      Require valid-user
+    </Limit>
+    <IfModule mod_php5.c>
+      php_flag magic_quotes_gpc Off
+      php_flag track_vars On
+      php_value include_path .
+    </IfModule>
+  </Directory>
+</VirtualHost>
+
+Dont forget to reload the configuration so that modifications are taken into account.
+
+You now just have to configure the web application. Copy the /var/www/yang/conf/config.php-dist file as /var/www/yang/conf/config.php and edit it. It contains:
+
+<?php 
+
+$conf = array(
+    /* database stuff */
+    'db_connection_string' => 'host=your_host dbname=your_db_name user=your_user password=xxxx',
+
+    /* graphing */
+    'graph_width'   => 700,
+    'graph_height'  => 300 
+);
+
+?>
+
+The db_connection string is the database string connection to the database. It's the same as for the collector. The graph_width and graph_height are the graphs's width and height.
+
+You can now display some statistics on http://supervision.my.domain.
+
+===== Use =====
+
+Everything is done from the web browser.
+
+The main page displays all hosts for which performance data has been retrieved by yang's collector.
+
+For each host, there is the number of monitored services, the number of plugins in warning or critical state, and system's load.
+
+The host name uses the same color codes as Nagios:
+
+  * red : at least a plugin is critical;
+  * orange : at least a plugin is warning
+  * blue: everything is ok.
+
+The hostname is a link the host's detail. Each plugin returning performance data will be displayed.
+
+

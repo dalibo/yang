@@ -1,0 +1,219 @@
+Doc d'installation en français.
+
+====== yang ======
+
+yang est l'acronyme de « Yet Another Nagios Grapher ». Son but est de permettre l'affichage de graphes à partir des données Nagios.
+
+yang est divisé en deux modules :
+
+  * un processus, de type démon, est lancé sur le serveur de monitoring pour récupérer les données de performances provenant des sondes de Nagios. Ces données sont stockées dans une base de données PostgreSQL.
+  * un ensemble de scripts PHP, récupérant les informations de la base et générant des graphiques à la demande.
+
+===== Prérequis =====
+
+  * un serveur Nagios déjà configuré
+  * un serveur web capable d'exécuter des scripts PHP
+  * un serveur PostgreSQL
+
+===== Installation =====
+
+L'installation nécessite de récupérer les sources de yang. Ces dernières se trouvent sur github : https://github.com/dalibo/yang.
+
+==== Nagios ====
+
+Nagios doit fournir les données de performances dans un certain format pour qu'elles puissent être interprétés. Voici la modification à effectuer (dans la configuration nagios) :
+
+host_perfdata_file=/var/lib/nagios3/host-perfdata
+service_perfdata_file=/var/lib/nagios3/service-perfda
+host_perfdata_file_template=DATATYPE::HOSTPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tHOSTPERFDATA::$HOSTPERFDATA$\tHOSTCHECKCOMMAND::$HOSTCHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tHOSTOUTPUT::$HOSTOUTPUT$
+service_perfdata_file_template=DATATYPE::SERVICEPERFDATA\tTIMET::$TIMET$\tHOSTNAME::$HOSTNAME$\tSERVICEDESC::$SERVICEDESC$\tSERVICEPERFDATA::$SERVICEPERFDATA$\tSERVICECHECKCOMMAND::$SERVICECHECKCOMMAND$\tHOSTSTATE::$HOSTSTATE$\tHOSTSTATETYPE::$HOSTSTATETYPE$\tSERVICESTATE::$SERVICESTATE$\tSERVICESTATETYPE::$SERVICESTATETYPE$\tSERVICEOUTPUT::$SERVICEOUTPUT$
+
+Après modification, il faut demander à Nagios de relire sa configuration :
+
+$ /etc/init.d/nagios3 reload
+
+==== Base de données ====
+
+yang stocke les informations dans une base de données PostgreSQL. Il est préférable d'avoir un utilisateur et une base particulière pour ça. La création des deux est standard :
+
+# createuser -SDRP yang
+Mot de passe: supersecret
+# createdb -O yang yang
+
+La configuration des accès distants (pg_hba.conf) peut avoir à être modifiée avec une ligne du style :
+
+host  yang  yang  xxx.xxx.xxx.xxx/xx  md5
+
+Un script SQL doit être exécuté sur cette base pour créer quelques objets : ajout du langage PL/pgsql, ajout de procédures stockées, ajout de tables, etc. Ce script se trouve dans le répertoire backend/db et se nomme createdb.sql. Son exécution est là-aussi standard :
+
+# psql -U yang -f backend/db/createdb.sql yang
+SET
+SET
+SET
+SET
+SET
+SET
+psql:backend/db/createdb.sql:9: ERROR:  language "plpgsql" already exists
+SET
+CREATE TYPE
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+SET
+SET
+CREATE TABLE
+CREATE SEQUENCE
+ALTER SEQUENCE
+ALTER TABLE
+CREATE INDEX
+CREATE TRIGGER
+CREATE TRIGGER
+
+L'erreur est normale si le langage est déjà créé sur cette base (par exemple si vous avez ajouté le langage PL/pgsql sur la base template1 ou si vous utilisez PostgreSQL 9.0).
+
+==== Collecteur ====
+
+Trois fichiers doivent être installés :
+
+  * le script de démarrage : yang_collector
+  * le script collecteur : yang_collector.pl
+  * le fichier de configuration : yang_collector.conf
+
+Le script de démarrage se trouve dans le répertoire backend/init.d des sources. Il se nomme yang_collector et doit être copié dans le répertoire /etc/init.d. Ensuite, il faut créer les liens habituels dans les répertoires rc.
+
+# cp backend/init.d/yang_collector /etc/init.d
+# update-rc.d
+
+Le script collecteur, backend/yang-collector.pl, doit être copié dans /usr/bin ou dans /usr/local/bin. Tout autre emplacement pourra convenir. Il faut simplement modifier le script de démarrage pour indiquer le chemin complet vers le script (variable DAEMON).
+
+# cp backend/yang_collector.pl /usr/local/bin
+
+Enfin, le fichier de configuration se trouve dans le répertoire backend et se nomme yang_collector.conf.example. Il faut le copier dans un répertoire et le renommer en yang_collector.conf. Par défaut, le chemin est /usr/local/etc. Le fichier d'exemple contient ce qui suit :
+
+# Example configuration file
+# Do you want to start as a daemon ?
+daemon=1
+# Where does nagios spool all it's perfdata ?
+directory=/var/lib/nagios3/spool/perfdata/
+# How often do we check ?
+frequency=5
+# Connection string to the database
+db_connection_string=dbi:Pg:dbname=nagios_perfdata host=my_host
+# Database user
+db_user=nagios_perfdata
+# Database password
+db_password=my_password
+# Debugging ? It means die on errors
+debug = 0 
+# syslogging ? messages sent to stderr else
+syslog = 1 
+
+
+Le point essentiel à vérifier est la chaîne de connexion à la base de données PostgreSQL, le nom d'utilisateur et le mot de passe. Le répertoire des données de performance de Nagios est à vérifier. La configuration actuelle est fonctionnelle pour un serveur Debian.
+
+Pour démarrer la récupération des données, il ne reste plus qu'à lancer le démon :
+
+# /etc/init.d/yang_collector start
+
+Attention:
+Si le collecteur tombe, les données de performance vont s'accumuler dans le répertoire de Nagios jusqu'à remplir le disque. Sans compter que vous n'aurez plus de données à jour dans les graphes. Pensez à ajouter une sonde dans Nagios pour surveiller la présence du démon, et une autre pour surveiller l'espace disque utilisée sur la partition de ce répertoire (si ce n'est pas déjà fait).
+
+==== Interface utilisateur ====
+
+L'interface utilisateur est en PHP, on y accède via un navigateur web. Il faut donc installer les scripts, configurer le serveur web et configurer l'application web.
+
+L'installation des scripts se fait par une simple copie du répertoire frontend. Par exemple :
+
+#cp -r frontend /var/www/yang
+
+La configuration du serveur web (Apache dans notre cas) se fait comme d'habitude. Nous avons mis en place un hôte virtuel avec ce fichier :
+
+<VirtualHost *:80>
+  ServerName supervision.mon.domaine
+  ServerAlias supervision.mon.domaine
+  ServerAdmin webmaster@mon.domaine
+
+  DocumentRoot /var/www/yang/
+
+  AddDefaultCharset UTF-8
+
+  <Directory /var/www/yang>
+    Order allow,deny
+    Allow from all
+    DirectoryIndex index.php index.html
+    AddType application/x-httpd-php .php .phtml
+    AuthName "Yang Access"
+    AuthType Basic
+    AuthUserFile /var/www/yang/.htpasswd.users
+    Require valid-user
+    <Limit GET POST>
+      Require valid-user
+    </Limit>
+    <IfModule mod_php5.c>
+      php_flag magic_quotes_gpc Off
+      php_flag track_vars On
+      php_value include_path .
+    </IfModule>
+  </Directory>
+</VirtualHost>
+
+N'oubliez pas de faire recharger la configuration pour que les modifications soient prises en compte.
+
+Et il reste à configurer l'application web. Il vous faut copier le fichier /var/www/yang/conf/config.php-dist en /var/www/yang/conf/config.php et éditer ce dernier. Il contient :
+
+<?php 
+
+$conf = array(
+    /* database stuff */
+    'db_connection_string' => 'host=your_host dbname=your_db_name user=your_user password=xxxx',
+
+    /* graphing */
+    'graph_width'   => 700,
+    'graph_height'  => 300 
+);
+
+?>
+
+La variable db_connection_string correspond à la chaîne de connexion à la base de données. Les informations correspondent à celles indiquées dans le fichier de configuration du collecteur. Les variables graph_width et graph_height indiquent respectivement la largeur et la hauteur des graphes.
+
+Dès maintenance, il est possible d'aller regarder les statistiques sur http://supervision.mon.domaine.
+
+===== Utilisation =====
+
+Tout se fait à partir du navigateur web.
+
+La page d'accueil regroupe tous les hôtes pour lesquels des données de performances ont été récupérées par le collecteur de yang.
+
+
+
+Pour chaque hôte sont précisés le nombre de services surveillés, un détail sur les services (sys = sonde système, pgsql = sonde PostgreSQL, others = sondes autres), le nombre de sondes ayant renvoyés des messages de niveau avertissement et critique ainsi que la charge.
+
+Le nom de l'hôte est dans un code couleur correspondant à celui suivi par Nagios :
+
+  * rouge : au moins une des sondes est en niveau critical ;
+  * orange : au moins une des sondes est en niveau warning ;
+  * bleu : tout va bien.
+
+Le nom de l'hôte est un lien permettant d'avoir le détail sur les différentes sondes ayant rapportées des informations de performance.
+
+
+
+La liste des sondes est affichée avec plusieurs liens :
+
+  * "show details" montre les niveaux de détails de la sonde (par exemple, sur la sonde "PGSQL - Database size", le niveau de détails est la base de données) ;
+  * le nom de la sonde permet d'avoir accès au graphe standard sur cette sonde ;
+  * "multi graphs" permet d'avoir accès à une page affichant un graphe par niveau de détails sur cette sonde ;
+  * "scale graphs" permet d'avoir accès à une page affichant un graphe sur une journée, un autre sur une semaine, un troisième sur un mois et un dernier sur un an pour cette sonde.
+
+Concernant le zoom, il est possible de sélectionner une période manuellement avec les champs texte ou avec une préselection sur le jour actuel, la semaine en cours, le mois en cours et enfin l'année en cours.
+
+Enfin, il est possible d'avoir un lien sur chaque sonde à partir de Nagios. Voici l'interface que cela nous donne :
+
