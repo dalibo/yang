@@ -21,6 +21,10 @@ require('./menu.php');
 
 printf("<h1>%s</h1>", htmlentities($title));
 
+?>
+<p><a href="services_by_host.php?hostname=<?php echo htmlentities($hostname)?>">Graphs by week</a></p>
+<?php
+
 echo "<table>\n";
 
 $current = '';
@@ -48,6 +52,7 @@ while ($service !== false) {
 		htmlentities($hostname), 
 		htmlentities($service['service'])
 	);
+
 	$service = pg_fetch_array($res);
 }
 
