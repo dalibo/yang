@@ -177,6 +177,12 @@ ORDER BY label", pg_escape_string($hostname), pg_escape_string($service));
 
     printf("<h2>%s</h2>", htmlentities($service));
 
+    printf("<p><a href=\"service.php?hostname=%s&service=%s\">Details</a></p>\n",
+           htmlentities($hostname),
+           htmlentities($service)
+        );
+
+
     print_graph($i, $sd);
 
     pg_free_result($series);
