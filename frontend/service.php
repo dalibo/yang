@@ -12,7 +12,7 @@ $title = "Host '{$hostname}' service '{$service}'";
 /* Set the WHERE condition to filter on wanted label if given */
 $where = 'TRUE';
 
-$query = sprintf("SELECT id, service, label, unit, extract(epoch FROM creation_timestamp) as creation_timestamp
+$query = sprintf("SELECT id, service, label || ' (max: ' || pg_size_pretty(max::bigint) || ')' AS label, unit, extract(epoch FROM creation_timestamp) as creation_timestamp
 FROM services
 WHERE hostname='%s'
 	AND service='%s'
