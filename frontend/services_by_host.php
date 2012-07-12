@@ -96,7 +96,7 @@ extract(epoch FROM NOW()) AS to;", pg_escape_string($period)));
 			 $serie['id'],
 			 sprintf('to_timestamp(%u)', $from),
 			 sprintf('to_timestamp(%u)', $to),
-			 intval(($to - $from) / 600 / 2)
+			 intval(($to - $from) / 300 / 2)
 	);
 
 
@@ -116,6 +116,8 @@ extract(epoch FROM NOW()) AS to;", pg_escape_string($period)));
     		$_value[0] *= 1000;
     		$values[$i]['data'][] = $_value;
     	}
+
+	pg_free_result($res);
 
     	$i++;
     }
