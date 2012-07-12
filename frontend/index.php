@@ -40,8 +40,9 @@ while ($host = pg_fetch_array($res)) {
 
 	echo "<tr>\n";
 	
-	printf("<td><a href=\"services.php?hostname=%s\" class=\"%s\">%s</a></td>\n",
-		htmlentities($host['hostname']), $host_status_class, htmlentities($host['hostname'])
+	printf("<td><a href=\"services.php?hostname=%s\" class=\"%s\">%s</a> (<a href=\"services_by_host.php?hostname=%s\">all</a>)</td>\n",
+		htmlentities($host['hostname']), $host_status_class, htmlentities($host['hostname']),
+		htmlentities($host['hostname'])
     );
 
 	printf("<td>%u</td><td>%u sys / %u pgsql / %u others</td>
