@@ -25,7 +25,7 @@ printf("<h1>%s</h1>", htmlentities($title));
 <p><a href="services_by_host.php?hostname=<?php echo htmlentities($hostname)?>">Graphs by week</a></p>
 <?php
 
-echo "<table>\n";
+echo "<table id=\"legend\">\n";
 
 $current = '';
 $service = pg_fetch_array($res);
