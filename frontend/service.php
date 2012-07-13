@@ -12,7 +12,7 @@ $title = "Host '{$hostname}' service '{$service}'";
 /* Set the WHERE condition to filter on wanted label if given */
 $where = 'TRUE';
 
-$query = sprintf("SELECT id, service, label || ' (max: ' || pg_size_pretty(max::bigint) || ')' AS label, unit, extract(epoch FROM creation_timestamp) as creation_timestamp
+$query = sprintf("SELECT id, service, label, max, unit, extract(epoch FROM creation_timestamp) as creation_timestamp
 FROM services
 WHERE hostname='%s'
 	AND service='%s'
@@ -39,11 +39,15 @@ $i = 0;
 while (($serie = pg_fetch_array($series)) !== false) {
 
 	$services_info[$i] = array(
-		'label' => $serie['label'],
 		'id' => $serie['id'],
 		'min_timestamp' => $serie['creation_timestamp'],
 		'unit' => $serie['unit']
 	);
+
+	if ($serie['max'])
+		$services_info[$i]['label'] = sprintf("{$serie['label']} (max: %s%s)", unitized($serie['max']), $serie['unit']);
+	else
+		$services_info[$i]['label'] = "{$serie['label']}";
 
 	$i++;
 }

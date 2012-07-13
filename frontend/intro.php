@@ -32,6 +32,15 @@ function print_htmlheader($title) {
 		', htmlentities($title)
 	);
 }
+
+function unitized($num=0) {
+	$units = array('', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y');
+
+	for ($i = 0; $i < 8 and $num >= 1024; $i++, $num/=1024);
+
+	return round($num, 2) . $units[$i];
+}
+
 ini_set('magic_quotes_runtime', 0);
 ini_set('magic_quotes_sybase', 0);
 
