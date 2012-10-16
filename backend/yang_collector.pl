@@ -120,7 +120,7 @@ sub log_message
 	if ($syslog)
 	{
 		setlogsock('unix');
-		openlog('yang','','user');
+		openlog('yang','',LOG_USER);
 		syslog('info',$message);
 		closelog();
 	}
