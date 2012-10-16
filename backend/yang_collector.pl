@@ -289,7 +289,7 @@ sub read_file
 			push @parsed_file,\%perfcounter;
 		}
 	}
-	$verbose and print Dumper(\@parsed_file);
+	$verbose and log_message(Dumper(\@parsed_file));
 	return \@parsed_file;
 }
 
