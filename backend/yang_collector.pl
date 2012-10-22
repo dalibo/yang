@@ -385,7 +385,7 @@ sub watch_directory
 		opendir($dir,$dirname) or die "Can't open directory $dirname: $!\n";
 		while (my $entry=readdir $dir)
 		{
-			next if ($entry eq '.' or $entry eq '..');
+			next if ($entry =~ '^.');
 			my $parsed=read_file("$dirname/$entry");
 			# Get rid of records that should be filtered
 			$parsed=do_filter($parsed,$hostname_filter,$service_filter,$label_filter);
