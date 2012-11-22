@@ -383,13 +383,14 @@ sub watch_directory
 	{
 		my $dir;
 		opendir($dir,$dirname) or die "Can't open directory $dirname: $!\n";
+		my $dbh;
 		while (my $entry=readdir $dir)
 		{
+			$dbh or $dbh=dbconnect();# We connect if there is a file to process, and disconnect for each batch
 			next if ($entry =~ '^\.');
 			my $parsed=read_file("$dirname/$entry");
 			# Get rid of records that should be filtered
 			$parsed=do_filter($parsed,$hostname_filter,$service_filter,$label_filter);
-			my $dbh=dbconnect();# We reconnect for each file, to be sure there is no memory leak
 			$dbh->begin_work();
 			my $inserted=insert_parsed_data($dbh,$parsed,"$dirname/$entry");
 			# If not inserted, we retry
@@ -401,8 +402,8 @@ sub watch_directory
 			}
 			unlink("$dirname/$entry") or die "Can't remove $dirname/$entry: $!\n";
 			$dbh->commit();
-			$dbh->disconnect();
 		}
+		$dbh->disconnect(); undef $dbh;
 		sleep $frequency;
 	}
 }
