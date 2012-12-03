@@ -365,7 +365,7 @@ sub insert_parsed_data
 			      $counter->{UOM});
 		unless ($executed)
 		{
-			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{MIN},$counter->{MAX},$counter->{WARNING},$counter->{CRITICAL},$counter->{UOM}.\nFile : $filename \n";
+			log_message "Can't execute: $counter->{HOSTNAME},$counter->{TIMET},$counter->{SERVICEDESC},$counter->{SERVICESTATE},$counter->{LABEL},$counter->{VALUE},$counter->{MIN},$counter->{MAX},$counter->{WARNING},$counter->{CRITICAL},$counter->{UOM}.\nError:$sth->errstr\n File : $filename \n";
 			return 0;
 		}
 		my $result=$sth->fetchrow();
