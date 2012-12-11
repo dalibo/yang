@@ -508,15 +508,6 @@ CREATE SEQUENCE services_id_seq
     CACHE 1;
 ALTER TABLE public.services_id_seq OWNER TO yang;
 ALTER SEQUENCE services_id_seq OWNED BY services.id;
-CREATE TABLE test_marc (
-    timet timestamp with time zone,
-    value numeric
-);
-ALTER TABLE public.test_marc OWNER TO postgres;
-CREATE TABLE test_mco (
-    records counters_detail[]
-);
-ALTER TABLE public.test_mco OWNER TO postgres;
 ALTER TABLE ONLY services ALTER COLUMN id SET DEFAULT nextval('services_id_seq'::regclass);
 ALTER TABLE ONLY services
     ADD CONSTRAINT services_pkey PRIMARY KEY (id);
