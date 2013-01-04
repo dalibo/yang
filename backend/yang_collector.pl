@@ -403,7 +403,7 @@ sub watch_directory
 			unlink("$dirname/$entry") or die "Can't remove $dirname/$entry: $!\n";
 			$dbh->commit();
 		}
-		$dbh->disconnect(); undef $dbh;
+		$dbh and $dbh->disconnect(); undef $dbh;
 		sleep $frequency;
 	}
 }
