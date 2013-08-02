@@ -263,6 +263,8 @@ sub read_file
 		foreach my $perfcounterref (@{$parsed_line->{SERVICEPERFDATA_PARSED}})
 		{
 			my %perfcounter;
+			# Those may not exist. Instead of testing everything, lets ignore errors
+			no warnings;
 			$perfcounter{TIMET}=$parsed_line->{TIMET};
 			$perfcounter{HOSTNAME}=$parsed_line->{HOSTNAME};
 			$perfcounter{SERVICEDESC}=$parsed_line->{SERVICEDESC};
@@ -282,6 +284,7 @@ sub read_file
 				$perfcounter{ORIG_VALUE}=$perfcounterref->{value};
 				$perfcounter{MULTFACTOR}=$multfactor;
 			}
+			use warnings;
 
 			
 
