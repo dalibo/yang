@@ -400,6 +400,7 @@ sub watch_directory
 			unless ($inserted)
 			{
 				$dbh->disconnect();
+				undef $dbh;
 			log_message("Couldn't insert $entry properly. Retrying");
 				redo;
 			}
